@@ -8,7 +8,6 @@ struct EditTaskView: View {
     @State private var taskTitle: String
     @State private var startTime: Date
     @State private var duration: TimeInterval
-    @State private var color: Color
     @State private var icon: String
     @State private var category: TaskCategory
     
@@ -21,7 +20,6 @@ struct EditTaskView: View {
         self._taskTitle = State(initialValue: task.title)
         self._startTime = State(initialValue: task.startTime)
         self._duration = State(initialValue: task.duration)
-        self._color = State(initialValue: task.color)
         self._icon = State(initialValue: task.icon)
         self._category = State(initialValue: task.category)
     }
@@ -36,7 +34,6 @@ struct EditTaskView: View {
                     Text("1 час").tag(TimeInterval(3600))
                     Text("2 часа").tag(TimeInterval(7200))
                 }
-                ColorPicker("Цвет", selection: $color)
                 Picker("Иконка", selection: $icon) {
                     ForEach(icons, id: \.self) { iconName in
                         Image(systemName: iconName).tag(iconName)
@@ -62,7 +59,7 @@ struct EditTaskView: View {
                             title: taskTitle,
                             startTime: startTime,
                             duration: duration,
-                            color: color,
+                            color: category.color, // Используем цвет категории
                             icon: icon,
                             category: category
                         )
