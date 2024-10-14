@@ -6,6 +6,7 @@
 //
 
 import CoreData
+import SwiftUI // Добавлен импорт SwiftUI для использования Color
 
 struct PersistenceController {
     static let shared = PersistenceController()
@@ -15,14 +16,18 @@ struct PersistenceController {
         let result = PersistenceController(inMemory: true)
         let viewContext = result.container.viewContext
         for _ in 0..<10 {
-            let newItem = Item(context: viewContext)
-            newItem.timestamp = Date()
+            let newTask = TaskEntity(context: viewContext)
+            newTask.id = UUID()
+            newTask.title = "Пример задачи"
+            newTask.startTime = Date()
+            newTask.duration = 3600
+            newTask.color = TaskCategory.work.color.toHex() // Изменено на TaskCategory
+            newTask.icon = "circle"
+            newTask.category = TaskCategory.work.rawValue // Изменено на TaskCategory
         }
         do {
             try viewContext.save()
         } catch {
-            // Replace this implementation with code to handle the error appropriately.
-            // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
             let nsError = error as NSError
             fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
         }
@@ -38,20 +43,69 @@ struct PersistenceController {
         }
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
-                // Replace this implementation with code to handle the error appropriately.
-                // fatalError() causes the application to generate a crash log and terminate. You should not use this function in a shipping application, although it may be useful during development.
-
-                /*
-                 Typical reasons for an error here include:
-                 * The parent directory does not exist, cannot be created, or disallows writing.
-                 * The persistent store is not accessible, due to permissions or data protection when the device is locked.
-                 * The device is out of space.
-                 * The store could not be migrated to the current model version.
-                 Check the error message to determine what the actual problem was.
-                 */
                 fatalError("Unresolved error \(error), \(error.userInfo)")
             }
         })
         container.viewContext.automaticallyMergesChangesFromParent = true
+    }
+
+    // Методы сохранения и загрузки задач
+    func saveTasks(_ tasks: [Task]) {
+        let context = container.viewContext
+        // Удаляем существующие задачи перед сохранением новых
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = TaskEntity.fetchRequest()
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+        do {
+            try context.execute(deleteRequest)
+        } catch {
+            print("Не удалось удалить существующие задачи: \(error)")
+        }
+
+        for task in tasks {
+            let newTaskEntity = TaskEntity(context: context)
+            newTaskEntity.id = task.id
+            newTaskEntity.title = task.title
+            newTaskEntity.startTime = task.startTime
+            newTaskEntity.duration = task.duration
+            newTaskEntity.color = task.color.toHex()
+            newTaskEntity.icon = task.icon
+            newTaskEntity.category = task.category.rawValue // Изменено на TaskCategory
+        }
+
+        do {
+            try context.save()
+        } catch {
+            let nsError = error as NSError
+            fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
+        }
+    }
+
+    func loadTasks() -> [Task] {
+        let context = container.viewContext
+        let fetchRequest: NSFetchRequest<TaskEntity> = TaskEntity.fetchRequest()
+        do {
+            let taskEntities = try context.fetch(fetchRequest)
+            return taskEntities.compactMap { entity in
+                guard let id = entity.id,
+                      let title = entity.title,
+                      let colorHex = entity.color,
+                      let categoryRaw = entity.category,
+                      let category = TaskCategory.allCases.first(where: { $0.rawValue == categoryRaw }) else {
+                    return nil
+                }
+                return Task(
+                    id: id,
+                    title: title,
+                    startTime: entity.startTime ?? Date(),
+                    duration: entity.duration,
+                    color: Color(hex: colorHex),
+                    icon: entity.icon ?? "circle",
+                    category: category
+                )
+            }
+        } catch {
+            print("Failed to fetch tasks: \(error)")
+            return []
+        }
     }
 }

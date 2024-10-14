@@ -13,7 +13,7 @@ struct TaskFlowApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ClockView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
         }
     }
