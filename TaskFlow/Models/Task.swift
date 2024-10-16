@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-struct Task: Identifiable, Equatable {
+struct Task: Identifiable, Equatable, Hashable, Codable {
     let id: UUID
     var title: String
     var startTime: Date
@@ -20,18 +20,36 @@ struct Task: Identifiable, Equatable {
         self.category = category
     }
 
-    static func == (lhs: Task, rhs: Task) -> Bool {
-        return lhs.id == rhs.id &&
-               lhs.title == rhs.title &&
-               lhs.startTime == rhs.startTime &&
-               lhs.duration == rhs.duration &&
-               lhs.color == rhs.color &&
-               lhs.icon == rhs.icon &&
-               lhs.category == rhs.category
+    enum CodingKeys: String, CodingKey {
+        case id, title, startTime, duration, color, icon, category
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(startTime, forKey: .startTime)
+        try container.encode(duration, forKey: .duration)
+        try container.encode(color.toHex(), forKey: .color)
+        try container.encode(icon, forKey: .icon)
+        try container.encode(category.rawValue, forKey: .category)
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        title = try container.decode(String.self, forKey: .title)
+        startTime = try container.decode(Date.self, forKey: .startTime)
+        duration = try container.decode(TimeInterval.self, forKey: .duration)
+        let colorHex = try container.decode(String.self, forKey: .color)
+        color = Color(hex: colorHex)
+        icon = try container.decode(String.self, forKey: .icon)
+        let categoryRawValue = try container.decode(String.self, forKey: .category)
+        category = TaskCategory.allCases.first { $0.rawValue == categoryRawValue } ?? .work
     }
 }
 
-struct TaskCategory: Hashable, Identifiable, CaseIterable {
+struct TaskCategory: Hashable, Identifiable, Codable {
     let id: UUID
     let rawValue: String
     let color: Color
@@ -44,18 +62,6 @@ struct TaskCategory: Hashable, Identifiable, CaseIterable {
         self.iconName = iconName
     }
     
-    static let food = TaskCategory(rawValue: "Еда", color: .green, iconName: "fork.knife")
-    static let sport = TaskCategory(rawValue: "Спорт", color: .red, iconName: "figure.walk")
-    static let sleep = TaskCategory(rawValue: "Сон", color: .blue, iconName: "bed.double")
-    static let work = TaskCategory(rawValue: "Работа", color: .orange, iconName: "laptopcomputer")
-    
-    static var allCases: [TaskCategory] {
-        [.food, .sport, .sleep, .work]
-    }
-}
-
-// Добавьте это расширение для поддержки Codable
-extension TaskCategory: Codable {
     enum CodingKeys: String, CodingKey {
         case id, rawValue, color, iconName
     }
@@ -75,5 +81,14 @@ extension TaskCategory: Codable {
         let colorHex = try container.decode(String.self, forKey: .color)
         color = Color(hex: colorHex)
         iconName = try container.decode(String.self, forKey: .iconName)
+    }
+    
+    static let food = TaskCategory(rawValue: "Еда", color: .green, iconName: "fork.knife")
+    static let sport = TaskCategory(rawValue: "Спорт", color: .red, iconName: "figure.walk")
+    static let sleep = TaskCategory(rawValue: "Сон", color: .blue, iconName: "bed.double")
+    static let work = TaskCategory(rawValue: "Работа", color: .orange, iconName: "laptopcomputer")
+    
+    static var allCases: [TaskCategory] {
+        [.food, .sport, .sleep, .work]
     }
 }

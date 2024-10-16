@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2C1C5E922CBEB3B3008D5CF3 /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = 2C1C5E912CBEB3B3008D5CF3 /* MarkdownUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		2CCBEC492CBBC7C300A5A367 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2C1C5E922CBEB3B3008D5CF3 /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +117,7 @@
 			);
 			name = TaskFlow;
 			packageProductDependencies = (
+				2C1C5E912CBEB3B3008D5CF3 /* MarkdownUI */,
 			);
 			productName = TaskFlow;
 			productReference = 2CCBEC332CBBC7C000A5A367 /* TaskFlow.app */;
@@ -195,6 +201,9 @@
 			);
 			mainGroup = 2CCBEC2A2CBBC7C000A5A367;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2C1C5E902CBEB3B3008D5CF3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2CCBEC342CBBC7C000A5A367 /* Products */;
 			projectDirPath = "";
@@ -558,6 +567,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		2C1C5E902CBEB3B3008D5CF3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/gonzalezreal/swift-markdown-ui";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.4.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2C1C5E912CBEB3B3008D5CF3 /* MarkdownUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2C1C5E902CBEB3B3008D5CF3 /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
+			productName = MarkdownUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 2CCBEC2B2CBBC7C000A5A367 /* Project object */;
 }

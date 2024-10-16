@@ -5,8 +5,9 @@ struct ClockView: View {
     @State private var showingAddTask = false
     @State private var showingSettings = false
     @State private var showingCategoryEditor = false
+    @State private var showingTaskFlow = false
+    @State private var showingStatistics = false
     @State private var currentDate = Date()
-    @State private var draggedCategory: TaskCategory?
     @State private var clockOffset: CGFloat = 0
     
     @AppStorage("backgroundColor") private var backgroundColor = Color.white.toHex()
@@ -18,8 +19,8 @@ struct ClockView: View {
         NavigationView {
             ZStack {
                 HStack(alignment: .center, spacing: 20) {
-                    clockFace
-                    categoryButtons
+                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, clockOffset: $clockOffset, viewModel: viewModel)
+                    CategoryButtonsView(viewModel: viewModel, showingAddTask: $showingAddTask, showingCategoryEditor: $showingCategoryEditor, clockOffset: $clockOffset)
                 }
                 
                 if showingCategoryEditor {
@@ -35,11 +36,21 @@ struct ClockView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { 
-                        viewModel.selectedCategory = .work
-                        showingAddTask = true 
-                    }) {
-                        Image(systemName: "plus")
+                    HStack {
+                        Button(action: { 
+                            viewModel.selectedCategory = .work
+                            showingAddTask = true 
+                        }) {
+                            Image(systemName: "plus")
+                        }
+                        
+                        Button(action: { showingTaskFlow = true }) {
+                            Image(systemName: "list.bullet")
+                        }
+                        
+                        Button(action: { showingStatistics = true }) {
+                            Image(systemName: "chart.bar")
+                        }
                     }
                 }
             }
@@ -49,69 +60,127 @@ struct ClockView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingTaskFlow) {
+                TaskFlowView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showingStatistics) {
+                StatisticsView(viewModel: viewModel)
+            }
         }
         .background(Color(hex: backgroundColor))
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .onReceive(timer) { _ in
+            currentDate = Date()
+        }
     }
+}
 
-    private var clockFace: some View {
+struct ClockFaceView: View {
+    let currentDate: Date
+    let tasks: [Task]
+    @Binding var clockOffset: CGFloat
+    @ObservedObject var viewModel: ClockViewModel
+    @State private var selectedTask: Task?
+    @State private var showingTaskDetail = false
+    
+    var body: some View {
         ZStack {
             Circle()
                 .stroke(Color.gray, lineWidth: 2)
             
-            ForEach(viewModel.tasks) { task in
-                ClockTaskArc(task: task)
-            }
+            TaskArcsView(tasks: tasks, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
             
-            ClockFaceView()
+            ClockMarksView()
             
             ClockHandView(currentDate: currentDate)
             
-            Circle()
-                .fill(Color.black.opacity(0.85))
-                .frame(width: 10, height: 10)
-            
-            clockCenterText
+            ClockCenterView(currentDate: currentDate)
         }
         .aspectRatio(1, contentMode: .fit)
         .padding()
-        .onReceive(timer) { _ in
-            currentDate = Date()
-        }
         .offset(x: clockOffset)
-    }
-
-    private var clockCenterText: some View {
-        VStack {
-            Text(currentDate, style: .date)
-                .font(.system(size: 18, weight: .bold))
-            Text(currentDate, style: .time)
-                .font(.system(size: 24, weight: .bold))
+        .animation(.spring(), value: tasks)
+        .sheet(isPresented: $showingTaskDetail) {
+            if let task = selectedTask {
+                TaskDetailView(task: task, viewModel: viewModel, isPresented: $showingTaskDetail)
+            }
         }
-        .foregroundColor(.white)
-        .padding()
-        .background(Color.black.opacity(0.5))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
+}
 
-    private var categoryButtons: some View {
+struct TaskArcsView: View {
+    let tasks: [Task]
+    @ObservedObject var viewModel: ClockViewModel
+    @Binding var selectedTask: Task?
+    @Binding var showingTaskDetail: Bool
+    
+    var body: some View {
+        GeometryReader { geometry in
+            ForEach(tasks) { task in
+                ClockTaskArc(task: task, geometry: geometry, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
+            }
+        }
+    }
+}
+
+struct ClockTaskArc: View {
+    let task: Task
+    let geometry: GeometryProxy
+    @ObservedObject var viewModel: ClockViewModel
+    @Binding var selectedTask: Task?
+    @Binding var showingTaskDetail: Bool
+    
+    var body: some View {
+        Path { path in
+            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+            let radius = min(geometry.size.width, geometry.size.height) / 2 - 10
+            let startAngle = self.angleForTime(task.startTime)
+            let endTime = task.startTime.addingTimeInterval(task.duration)
+            let endAngle = self.angleForTime(endTime)
+            
+            path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+        }
+        .stroke(task.category.color, lineWidth: 20)
+        .onTapGesture {
+            selectedTask = task
+            showingTaskDetail = true
+        }
+    }
+    
+    private func angleForTime(_ time: Date) -> Angle {
+        let calendar = Calendar.current
+        let hour = CGFloat(calendar.component(.hour, from: time))
+        let minute = CGFloat(calendar.component(.minute, from: time))
+        let totalMinutes = hour * 60 + minute
+        return Angle(degrees: Double(totalMinutes) / 4 - 90)
+    }
+}
+
+struct CategoryButtonsView: View {
+    @ObservedObject var viewModel: ClockViewModel
+    @Binding var showingAddTask: Bool
+    @Binding var showingCategoryEditor: Bool
+    @Binding var clockOffset: CGFloat
+    
+    var body: some View {
         VStack(spacing: 10) {
             ForEach(viewModel.categories, id: \.self) { category in
                 CategoryButton(category: category, action: {
                     viewModel.selectedCategory = category
                     showingAddTask = true
                 })
-                .onDrag {
-                    self.draggedCategory = category
-                    return NSItemProvider(object: category.rawValue as NSString)
-                }
             }
-            addCategoryButton
+            AddCategoryButton(showingCategoryEditor: $showingCategoryEditor, clockOffset: $clockOffset)
         }
         .padding(.trailing)
     }
+}
 
-    private var addCategoryButton: some View {
+struct AddCategoryButton: View {
+    @Binding var showingCategoryEditor: Bool
+    @Binding var clockOffset: CGFloat
+    
+    var body: some View {
         Button(action: {
             withAnimation(.easeInOut(duration: 0.5)) {
                 clockOffset = -UIScreen.main.bounds.width
@@ -127,154 +196,37 @@ struct ClockView: View {
     }
 }
 
-struct ClockTaskArc: View {
-    let task: Task
-    
-    var body: some View {
-        GeometryReader { geometry in
-            Path { path in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = min(geometry.size.width, geometry.size.height) / 2 - 10
-                let startAngle = self.angleForTime(task.startTime)
-                let endTime = task.startTime.addingTimeInterval(task.duration)
-                let endAngle = self.angleForTime(endTime)
-                
-                path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
-            }
-            .stroke(task.category.color, lineWidth: 20)
-        }
-    }
-    
-    private func angleForTime(_ time: Date) -> Angle {
-        let calendar = Calendar.current
-        let hour = CGFloat(calendar.component(.hour, from: time))
-        let minute = CGFloat(calendar.component(.minute, from: time))
-        let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
-    }
-}
-
-struct CategoryButton: View {
-    let category: TaskCategory
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: category.iconName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .padding(15)
-                .frame(width: 50, height: 50)
-                .background(category.color.opacity(0.8))
-                .foregroundColor(.white)
-                .clipShape(Circle())
-                .shadow(radius: 5)
-        }
-    }
-}
-
-struct ClockDropDelegate: DropDelegate {
-    let viewModel: ClockViewModel
-    
-    func performDrop(info: DropInfo) -> Bool {
-        guard let item = info.itemProviders(for: [.text]).first else { return false }
-        
-        item.loadObject(ofClass: NSString.self) { (reading, error) in
-            if let error = error {
-                print("Error: \(error.localizedDescription)")
-                return
-            }
-            guard let categoryRawValue = reading as? String,
-                  let category = viewModel.categories.first(where: { $0.rawValue == categoryRawValue }) else { return }
-            
-            DispatchQueue.main.async {
-                let newTask = Task(title: "Новая задача", startTime: Date(), duration: 3600, color: category.color, icon: category.iconName, category: category)
-                self.viewModel.addTask(newTask)
-            }
-        }
-        return true
-    }
-}
-
-struct ClockFaceView: View {
+struct ClockMarksView: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         GeometryReader { geometry in
-            ZStack {
-                ForEach(0..<24) { hour in
-                    HourMark(hour: hour, geometry: geometry, colorScheme: colorScheme)
-                    HourLabel(hour: hour, geometry: geometry, colorScheme: colorScheme)
+            ForEach(0..<24) { hour in
+                Path { path in
+                    let angle = CGFloat(hour) * .pi / 12
+                    let length: CGFloat = hour % 3 == 0 ? 15 : 10
+                    let start = CGPoint(
+                        x: geometry.size.width / 2 + (geometry.size.width / 2 - length) * cos(angle),
+                        y: geometry.size.height / 2 + (geometry.size.width / 2 - length) * sin(angle)
+                    )
+                    let end = CGPoint(
+                        x: geometry.size.width / 2 + (geometry.size.width / 2) * cos(angle),
+                        y: geometry.size.height / 2 + (geometry.size.width / 2) * sin(angle)
+                    )
+                    path.move(to: start)
+                    path.addLine(to: end)
                 }
-            }
-        }
-    }
-}
-
-struct HourMark: View {
-    let hour: Int
-    let geometry: GeometryProxy
-    let colorScheme: ColorScheme
-    
-    var body: some View {
-        Path { path in
-            let angle = CGFloat(hour) * .pi / 12
-            let length: CGFloat = hour % 3 == 0 ? 15 : 10
-            let start = CGPoint(
-                x: geometry.size.width / 2 + (geometry.size.width / 2 - length) * cos(angle),
-                y: geometry.size.height / 2 + (geometry.size.width / 2 - length) * sin(angle)
-            )
-            let end = CGPoint(
-                x: geometry.size.width / 2 + (geometry.size.width / 2) * cos(angle),
-                y: geometry.size.height / 2 + (geometry.size.width / 2) * sin(angle)
-            )
-            path.move(to: start)
-            path.addLine(to: end)
-        }
-        .stroke(colorScheme == .dark ? Color.white : Color.black, lineWidth: hour % 3 == 0 ? 2 : 1)
-    }
-}
-
-struct HourLabel: View {
-    let hour: Int
-    let geometry: GeometryProxy
-    let colorScheme: ColorScheme
-    
-    var body: some View {
-        Text("\(hour)")
-            .font(.system(size: 14, weight: .bold))
-            .foregroundColor(colorScheme == .dark ? .white : .black)
-            .position(
-                x: geometry.size.width / 2 + (geometry.size.width / 2 - 30) * cos(CGFloat(hour) * .pi / 12),
-                y: geometry.size.height / 2 + (geometry.size.width / 2 - 30) * sin(CGFloat(hour) * .pi / 12)
-            )
-    }
-}
-
-struct ClockTaskView: View {
-    let task: Task
-    @ObservedObject var viewModel: ClockViewModel
-    
-    var body: some View {
-        GeometryReader { geometry in
-            Path { path in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = min(geometry.size.width, geometry.size.height) / 2 - 10
-                let startAngle = angleForTime(task.startTime)
-                let endAngle = angleForTime(task.startTime.addingTimeInterval(task.duration))
+                .stroke(colorScheme == .dark ? Color.white : Color.black, lineWidth: hour % 3 == 0 ? 2 : 1)
                 
-                path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+                Text("\(hour)")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? .white : .black)
+                    .position(
+                        x: geometry.size.width / 2 + (geometry.size.width / 2 - 30) * cos(CGFloat(hour) * .pi / 12),
+                        y: geometry.size.height / 2 + (geometry.size.width / 2 - 30) * sin(CGFloat(hour) * .pi / 12)
+                    )
             }
-            .stroke(task.category.color, lineWidth: 20)
         }
-    }
-    
-    private func angleForTime(_ time: Date) -> Angle {
-        let calendar = Calendar.current
-        let hour = CGFloat(calendar.component(.hour, from: time))
-        let minute = CGFloat(calendar.component(.minute, from: time))
-        let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
     }
 }
 
@@ -309,6 +261,91 @@ struct ClockHandView: View {
     }
 }
 
-#Preview {
-    ClockView()
+struct ClockCenterView: View {
+    let currentDate: Date
+    
+    var body: some View {
+        VStack {
+            Text(currentDate, style: .date)
+                .font(.system(size: 18, weight: .bold))
+            Text(currentDate, style: .time)
+                .font(.system(size: 24, weight: .bold))
+        }
+        .foregroundColor(.white)
+        .padding()
+        .background(Color.black.opacity(0.5))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+struct TaskDetailView: View {
+    let task: Task
+    @ObservedObject var viewModel: ClockViewModel
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("Детали задачи")) {
+                    Text("Название: \(task.title)")
+                    Text("Категория: \(task.category.rawValue)")
+                    Text("Начало: \(task.startTime, formatter: dateFormatter)")
+                    Text("Продолжительность: \(formattedDuration)")
+                }
+                
+                Section {
+                    Button("Редактировать") {
+                        // Здесь мы можем открыть TaskEditorView для редактирования
+                    }
+                    Button("Удалить", role: .destructive) {
+                        viewModel.removeTask(task)
+                        isPresented = false
+                    }
+                }
+            }
+            .navigationTitle("Информация о задаче")
+            .navigationBarItems(trailing: Button("Закрыть") {
+                isPresented = false
+            })
+        }
+    }
+    
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }
+    
+    private var formattedDuration: String {
+        let hours = Int(task.duration) / 3600
+        let minutes = (Int(task.duration) % 3600) / 60
+        return "\(hours) ч \(minutes) мин"
+    }
+}
+
+struct ClockView_Previews: PreviewProvider {
+    static var previews: some View {
+        ClockView()
+    }
+}
+
+struct CategoryButton: View {
+    let category: TaskCategory
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack {
+                Image(systemName: category.iconName)
+                    .font(.system(size: 30))
+                Text(category.rawValue)
+                    .font(.caption)
+            }
+            .foregroundColor(category.color)
+            .frame(width: 60, height: 60)
+            .background(category.color.opacity(0.2))
+            .cornerRadius(10)
+        }
+    }
 }

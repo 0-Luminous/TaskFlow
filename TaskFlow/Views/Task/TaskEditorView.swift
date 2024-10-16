@@ -1,9 +1,13 @@
 import SwiftUI
+import Foundation
 
 struct TaskEditorView: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var isPresented: Bool
     @State private var editedTask: Task
+    @State private var showingDeleteConfirmation = false
+    @State private var isRepeating = false
+    @State private var repeatPattern = RepeatPattern(type: .daily, count: 1)
     
     init(viewModel: ClockViewModel, task: Task, isPresented: Binding<Bool>) {
         self.viewModel = viewModel
@@ -27,6 +31,29 @@ struct TaskEditorView: View {
                     }
                 }
                 .pickerStyle(MenuPickerStyle())
+                
+                Section(header: Text("Повторение")) {
+                    Toggle("Повторять задачу", isOn: $isRepeating)
+                    
+                    if isRepeating {
+                        Picker("Тип повторения", selection: $repeatPattern.type) {
+                            Text("Ежедневно").tag(RepeatPatternType.daily)
+                            Text("Еженедельно").tag(RepeatPatternType.weekly)
+                            Text("Ежемесячно").tag(RepeatPatternType.monthly)
+                        }
+                        
+                        Stepper("Количество повторений: \(repeatPattern.count)", value: $repeatPattern.count, in: 1...30)
+                    }
+                }
+                
+                if editedTask.id != UUID() {
+                    Section {
+                        Button("Удалить задачу") {
+                            showingDeleteConfirmation = true
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
             }
             .navigationTitle(editedTask.id == UUID() ? "Новая задача" : "Редактор задачи")
             .toolbar {
@@ -36,7 +63,11 @@ struct TaskEditorView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Сохранить") {
                         if editedTask.id == UUID() {
-                            viewModel.addTask(editedTask)
+                            if isRepeating {
+                                viewModel.addRepeatingTask(editedTask, repeatPattern: repeatPattern)
+                            } else {
+                                viewModel.addTask(editedTask)
+                            }
                         } else {
                             viewModel.updateTask(editedTask)
                         }
@@ -44,6 +75,15 @@ struct TaskEditorView: View {
                     }
                     .disabled(editedTask.title.isEmpty)
                 }
+            }
+            .alert("Удалить задачу?", isPresented: $showingDeleteConfirmation) {
+                Button("Отмена", role: .cancel) { }
+                Button("Удалить", role: .destructive) {
+                    viewModel.removeTask(editedTask)
+                    isPresented = false
+                }
+            } message: {
+                Text("Вы уверены, что хотите удалить эту задачу?")
             }
         }
     }
