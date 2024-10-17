@@ -18,19 +18,25 @@ struct TaskEditorView: View {
     var body: some View {
         NavigationView {
             Form {
-                TextField("Название задачи", text: $editedTask.title)
-                DatePicker("Время начала", selection: $editedTask.startTime, displayedComponents: [.hourAndMinute, .date])
-                DatePicker("Конец", selection: Binding(
-                    get: { editedTask.startTime.addingTimeInterval(editedTask.duration) },
-                    set: { editedTask.duration = $0.timeIntervalSince(editedTask.startTime) }
-                ), in: editedTask.startTime..., displayedComponents: [.hourAndMinute, .date])
-                Picker("Категория", selection: $editedTask.category) {
-                    ForEach(viewModel.categories, id: \.self) { category in
-                        Label(category.rawValue, systemImage: category.iconName)
-                            .foregroundColor(category.color)
-                    }
+                Section(header: Text("Основная информация")) {
+                    TextField("Название задачи", text: $editedTask.title)
+                    DatePicker("Время начала", selection: $editedTask.startTime, displayedComponents: [.hourAndMinute, .date])
+                    DatePicker("Конец", selection: Binding(
+                        get: { editedTask.startTime.addingTimeInterval(editedTask.duration) },
+                        set: { editedTask.duration = $0.timeIntervalSince(editedTask.startTime) }
+                    ), in: editedTask.startTime..., displayedComponents: [.hourAndMinute, .date])
                 }
-                .pickerStyle(MenuPickerStyle())
+                
+                Section(header: Text("Категория")) {
+                    Picker("Категория", selection: $editedTask.category) {
+                        ForEach(viewModel.categories, id: \.self) { category in
+                            Label(category.rawValue, systemImage: category.iconName)
+                                .foregroundColor(category.color)
+                                .tag(category)
+                        }
+                    }
+                    .pickerStyle(MenuPickerStyle())
+                }
                 
                 Section(header: Text("Повторение")) {
                     Toggle("Повторять задачу", isOn: $isRepeating)

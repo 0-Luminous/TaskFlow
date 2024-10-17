@@ -1,4 +1,5 @@
 import SwiftUI
+import Foundation
 
 struct ClockView: View {
     @StateObject private var viewModel = ClockViewModel()
@@ -9,6 +10,7 @@ struct ClockView: View {
     @State private var showingStatistics = false
     @State private var currentDate = Date()
     @State private var clockOffset: CGFloat = 0
+    @State private var showingTodayTasks = false
     
     @AppStorage("backgroundColor") private var backgroundColor = Color.white.toHex()
     @AppStorage("isDarkMode") private var isDarkMode = false
@@ -45,11 +47,16 @@ struct ClockView: View {
                         }
                         
                         Button(action: { showingTaskFlow = true }) {
-                            Image(systemName: "list.bullet")
+                            Image(systemName: "calendar")
                         }
                         
                         Button(action: { showingStatistics = true }) {
                             Image(systemName: "chart.bar")
+                        }
+                        
+                        // Добавьте эту кнопку
+                        Button(action: { showingTodayTasks = true }) {
+                            Image(systemName: "list.bullet")
                         }
                     }
                 }
@@ -65,6 +72,9 @@ struct ClockView: View {
             }
             .sheet(isPresented: $showingStatistics) {
                 StatisticsView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showingTodayTasks) {
+                TodayTasksView(viewModel: viewModel)
             }
         }
         .background(Color(hex: backgroundColor))
@@ -202,31 +212,58 @@ struct ClockMarksView: View {
     var body: some View {
         GeometryReader { geometry in
             ForEach(0..<24) { hour in
-                Path { path in
-                    let angle = CGFloat(hour) * .pi / 12
-                    let length: CGFloat = hour % 3 == 0 ? 15 : 10
-                    let start = CGPoint(
-                        x: geometry.size.width / 2 + (geometry.size.width / 2 - length) * cos(angle),
-                        y: geometry.size.height / 2 + (geometry.size.width / 2 - length) * sin(angle)
-                    )
-                    let end = CGPoint(
-                        x: geometry.size.width / 2 + (geometry.size.width / 2) * cos(angle),
-                        y: geometry.size.height / 2 + (geometry.size.width / 2) * sin(angle)
-                    )
-                    path.move(to: start)
-                    path.addLine(to: end)
-                }
-                .stroke(colorScheme == .dark ? Color.white : Color.black, lineWidth: hour % 3 == 0 ? 2 : 1)
-                
-                Text("\(hour)")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : .black)
-                    .position(
-                        x: geometry.size.width / 2 + (geometry.size.width / 2 - 30) * cos(CGFloat(hour) * .pi / 12),
-                        y: geometry.size.height / 2 + (geometry.size.width / 2 - 30) * sin(CGFloat(hour) * .pi / 12)
-                    )
+                ClockMarkView(hour: hour, geometry: geometry, colorScheme: colorScheme)
             }
         }
+    }
+}
+
+struct ClockMarkView: View {
+    let hour: Int
+    let geometry: GeometryProxy
+    let colorScheme: ColorScheme
+    
+    var body: some View {
+        Group {
+            clockMarkLine
+            clockMarkText
+        }
+    }
+    
+    private var clockMarkLine: some View {
+        Path { path in
+            let angle = CGFloat(hour) * .pi / 12
+            let length: CGFloat = hour % 3 == 0 ? 15 : 10
+            let start = startPoint(angle: angle, length: length)
+            let end = endPoint(angle: angle)
+            path.move(to: start)
+            path.addLine(to: end)
+        }
+        .stroke(colorScheme == .dark ? Color.white : Color.black, lineWidth: hour % 3 == 0 ? 2 : 1)
+    }
+    
+    private func startPoint(angle: CGFloat, length: CGFloat) -> CGPoint {
+        CGPoint(
+            x: geometry.size.width / 2 + (geometry.size.width / 2 - length) * cos(angle),
+            y: geometry.size.height / 2 + (geometry.size.width / 2 - length) * sin(angle)
+        )
+    }
+    
+    private func endPoint(angle: CGFloat) -> CGPoint {
+        CGPoint(
+            x: geometry.size.width / 2 + (geometry.size.width / 2) * cos(angle),
+            y: geometry.size.height / 2 + (geometry.size.width / 2) * sin(angle)
+        )
+    }
+    
+    private var clockMarkText: some View {
+        Text("\(hour)")
+            .font(.system(size: 14, weight: .bold))
+            .foregroundColor(colorScheme == .dark ? .white : .black)
+            .position(
+                x: geometry.size.width / 2 + (geometry.size.width / 2 - 30) * cos(CGFloat(hour) * .pi / 12),
+                y: geometry.size.height / 2 + (geometry.size.width / 2 - 30) * sin(CGFloat(hour) * .pi / 12)
+            )
     }
 }
 
@@ -303,7 +340,7 @@ struct TaskDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Информация о задаче")
+            .navigationTitle("Инфомация о задаче")
             .navigationBarItems(trailing: Button("Закрыть") {
                 isPresented = false
             })

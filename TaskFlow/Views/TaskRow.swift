@@ -17,6 +17,7 @@ struct TaskRow: View {
                 Text(task.title)
                     .font(.headline)
                     .lineLimit(1)
+                    .strikethrough(isSelected)
                 HStack {
                     Text(task.category.rawValue)
                         .font(.caption)

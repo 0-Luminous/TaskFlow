@@ -9,8 +9,9 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
     var color: Color
     var icon: String
     var category: TaskCategory
+    var isCompleted: Bool // Добавляем это свойство
 
-    init(id: UUID = UUID(), title: String, startTime: Date, duration: TimeInterval, color: Color, icon: String, category: TaskCategory) {
+    init(id: UUID = UUID(), title: String, startTime: Date, duration: TimeInterval, color: Color, icon: String, category: TaskCategory, isCompleted: Bool = false) {
         self.id = id
         self.title = title
         self.startTime = startTime
@@ -18,10 +19,11 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
         self.color = color
         self.icon = icon
         self.category = category
+        self.isCompleted = isCompleted
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, title, startTime, duration, color, icon, category
+        case id, title, startTime, duration, color, icon, category, isCompleted
     }
 
     func encode(to encoder: Encoder) throws {
@@ -33,6 +35,7 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
         try container.encode(color.toHex(), forKey: .color)
         try container.encode(icon, forKey: .icon)
         try container.encode(category.rawValue, forKey: .category)
+        try container.encode(isCompleted, forKey: .isCompleted)
     }
 
     init(from decoder: Decoder) throws {
@@ -46,6 +49,7 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
         icon = try container.decode(String.self, forKey: .icon)
         let categoryRawValue = try container.decode(String.self, forKey: .category)
         category = TaskCategory.allCases.first { $0.rawValue == categoryRawValue } ?? .work
+        isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
     }
 }
 
