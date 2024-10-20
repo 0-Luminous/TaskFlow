@@ -5,11 +5,9 @@ struct ClockView: View {
     @StateObject private var viewModel = ClockViewModel()
     @State private var showingAddTask = false
     @State private var showingSettings = false
-    @State private var showingCategoryEditor = false
     @State private var showingTaskFlow = false
     @State private var showingStatistics = false
     @State private var currentDate = Date()
-    @State private var clockOffset: CGFloat = 0
     @State private var showingTodayTasks = false
     
     @AppStorage("backgroundColor") private var backgroundColor = Color.white.toHex()
@@ -19,18 +17,13 @@ struct ClockView: View {
     
     var body: some View {
         NavigationView {
-            ZStack {
-                HStack(alignment: .center, spacing: 20) {
-                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, clockOffset: $clockOffset, viewModel: viewModel)
-                    CategoryButtonsView(viewModel: viewModel, showingAddTask: $showingAddTask, showingCategoryEditor: $showingCategoryEditor, clockOffset: $clockOffset)
-                }
-                
-                if showingCategoryEditor {
-                    CategoryEditorView(viewModel: viewModel, isPresented: $showingCategoryEditor, clockOffset: $clockOffset)
-                        .transition(.move(edge: .trailing))
-                }
+            VStack {
+                Spacer()
+                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel)
+                Spacer()
+                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask)
             }
-            .navigationTitle("Ежедневник")
+            .navigationTitle(formattedDate)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
@@ -39,13 +32,6 @@ struct ClockView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
-                        Button(action: { 
-                            viewModel.selectedCategory = .work
-                            showingAddTask = true 
-                        }) {
-                            Image(systemName: "plus")
-                        }
-                        
                         Button(action: { showingTaskFlow = true }) {
                             Image(systemName: "calendar")
                         }
@@ -54,7 +40,6 @@ struct ClockView: View {
                             Image(systemName: "chart.bar")
                         }
                         
-                        // Добавьте эту кнопку
                         Button(action: { showingTodayTasks = true }) {
                             Image(systemName: "list.bullet")
                         }
@@ -83,12 +68,67 @@ struct ClockView: View {
             currentDate = Date()
         }
     }
+    
+    private var formattedDate: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "d MMMM yyyy"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter.string(from: currentDate)
+    }
+}
+
+struct CategoryDockBar: View {
+    @ObservedObject var viewModel: ClockViewModel
+    @Binding var showingAddTask: Bool
+    
+    var body: some View {
+        HStack(spacing: 20) {
+            ForEach(viewModel.categories, id: \.self) { category in
+                CategoryButton(category: category, action: {
+                    viewModel.selectedCategory = category
+                    showingAddTask = true
+                })
+            }
+            
+            Button(action: {
+                // Здесь можно добавить действие для добавления новой категории
+            }) {
+                Image(systemName: "plus.circle")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 30, height: 30)
+                    .foregroundColor(.blue)
+            }
+        }
+        .padding()
+        .background(Color.gray.opacity(0.2))
+        .cornerRadius(20)
+        .padding(.horizontal)
+        .padding(.bottom, 8)
+    }
+}
+
+struct CategoryButton: View {
+    let category: TaskCategory
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            VStack {
+                Image(systemName: category.iconName)
+                    .font(.system(size: 24))
+                Text(category.rawValue)
+                    .font(.caption2)
+            }
+            .foregroundColor(category.color)
+            .frame(width: 50, height: 50)
+        }
+    }
 }
 
 struct ClockFaceView: View {
     let currentDate: Date
     let tasks: [Task]
-    @Binding var clockOffset: CGFloat
     @ObservedObject var viewModel: ClockViewModel
     @State private var selectedTask: Task?
     @State private var showingTaskDetail = false
@@ -103,12 +143,10 @@ struct ClockFaceView: View {
             ClockMarksView()
             
             ClockHandView(currentDate: currentDate)
-            
-            ClockCenterView(currentDate: currentDate)
         }
         .aspectRatio(1, contentMode: .fit)
+        .frame(height: UIScreen.main.bounds.width * 0.7) // Увеличиваем размер в 1.4 раза
         .padding()
-        .offset(x: clockOffset)
         .animation(.spring(), value: tasks)
         .sheet(isPresented: $showingTaskDetail) {
             if let task = selectedTask {
@@ -163,46 +201,6 @@ struct ClockTaskArc: View {
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
         return Angle(degrees: Double(totalMinutes) / 4 + 90)
-    }
-}
-
-struct CategoryButtonsView: View {
-    @ObservedObject var viewModel: ClockViewModel
-    @Binding var showingAddTask: Bool
-    @Binding var showingCategoryEditor: Bool
-    @Binding var clockOffset: CGFloat
-    
-    var body: some View {
-        VStack(spacing: 10) {
-            ForEach(viewModel.categories, id: \.self) { category in
-                CategoryButton(category: category, action: {
-                    viewModel.selectedCategory = category
-                    showingAddTask = true
-                })
-            }
-            AddCategoryButton(showingCategoryEditor: $showingCategoryEditor, clockOffset: $clockOffset)
-        }
-        .padding(.trailing)
-    }
-}
-
-struct AddCategoryButton: View {
-    @Binding var showingCategoryEditor: Bool
-    @Binding var clockOffset: CGFloat
-    
-    var body: some View {
-        Button(action: {
-            withAnimation(.easeInOut(duration: 0.5)) {
-                clockOffset = -UIScreen.main.bounds.width
-                showingCategoryEditor = true
-            }
-        }) {
-            Image(systemName: "plus.circle")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 50, height: 50)
-                .foregroundColor(.blue)
-        }
     }
 }
 
@@ -366,25 +364,5 @@ struct TaskDetailView: View {
 struct ClockView_Previews: PreviewProvider {
     static var previews: some View {
         ClockView()
-    }
-}
-
-struct CategoryButton: View {
-    let category: TaskCategory
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            VStack {
-                Image(systemName: category.iconName)
-                    .font(.system(size: 30))
-                Text(category.rawValue)
-                    .font(.caption)
-            }
-            .foregroundColor(category.color)
-            .frame(width: 60, height: 60)
-            .background(category.color.opacity(0.2))
-            .cornerRadius(10)
-        }
     }
 }
