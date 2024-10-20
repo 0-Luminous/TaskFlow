@@ -296,7 +296,7 @@ struct ClockHandView: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
+        return Angle(degrees: Double(totalMinutes) / 4 + 90)
     }
 }
 
