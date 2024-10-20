@@ -80,24 +80,35 @@ struct ClockView: View {
 struct CategoryDockBar: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var showingAddTask: Bool
+    @State private var isEditMode = false
+    @State private var editingCategory: TaskCategory?
     
     var body: some View {
         HStack(spacing: 20) {
             ForEach(viewModel.categories, id: \.self) { category in
                 CategoryButton(category: category, action: {
-                    viewModel.selectedCategory = category
-                    showingAddTask = true
+                    if isEditMode {
+                        editingCategory = category
+                    } else {
+                        viewModel.selectedCategory = category
+                        showingAddTask = true
+                    }
                 })
+                .overlay(
+                    isEditMode ? AnyView(editOverlay) : AnyView(EmptyView())
+                )
             }
             
-            Button(action: {
-                // Здесь можно добавить действие для добавления новой категории
-            }) {
-                Image(systemName: "plus.circle")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 30, height: 30)
-                    .foregroundColor(.blue)
+            if isEditMode {
+                Button(action: {
+                    // Действие для добавления новой категории
+                }) {
+                    Image(systemName: "plus.circle")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 30, height: 30)
+                        .foregroundColor(.blue)
+                }
             }
         }
         .padding()
@@ -105,6 +116,26 @@ struct CategoryDockBar: View {
         .cornerRadius(20)
         .padding(.horizontal)
         .padding(.bottom, 8)
+        .gesture(
+            LongPressGesture(minimumDuration: 0.5)
+                .onEnded { _ in
+                    withAnimation {
+                        isEditMode.toggle()
+                    }
+                }
+        )
+    }
+    
+    private var editOverlay: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Image(systemName: "minus.circle.fill")
+                    .foregroundColor(.red)
+                    .padding(5)
+            }
+        }
     }
 }
 
