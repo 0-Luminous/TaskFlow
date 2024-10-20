@@ -162,7 +162,7 @@ struct ClockTaskArc: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
+        return Angle(degrees: Double(totalMinutes) / 4 + 90)
     }
 }
 
@@ -257,7 +257,7 @@ struct ClockMarkView: View {
     }
     
     private var clockMarkText: some View {
-        let angle = CGFloat(hour) * .pi / 12 - .pi / 2
+        let angle = CGFloat(hour) * .pi / 12 + .pi / 2
         let radius = geometry.size.width / 2 - 30
         let xPosition = geometry.size.width / 2 + radius * cos(angle)
         let yPosition = geometry.size.height / 2 + radius * sin(angle)
