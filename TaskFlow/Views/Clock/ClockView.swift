@@ -257,13 +257,15 @@ struct ClockMarkView: View {
     }
     
     private var clockMarkText: some View {
-        Text("\(hour)")
+        let angle = CGFloat(hour) * .pi / 12 - .pi / 2
+        let radius = geometry.size.width / 2 - 30
+        let xPosition = geometry.size.width / 2 + radius * cos(angle)
+        let yPosition = geometry.size.height / 2 + radius * sin(angle)
+        
+        return Text("\(hour)")
             .font(.system(size: 14, weight: .bold))
             .foregroundColor(colorScheme == .dark ? .white : .black)
-            .position(
-                x: geometry.size.width / 2 + (geometry.size.width / 2 - 30) * cos(CGFloat(hour) * .pi / 12),
-                y: geometry.size.height / 2 + (geometry.size.width / 2 - 30) * sin(CGFloat(hour) * .pi / 12)
-            )
+            .position(x: xPosition, y: yPosition)
     }
 }
 
