@@ -9,8 +9,9 @@ struct ClockView: View {
     @State private var showingStatistics = false
     @State private var currentDate = Date()
     @State private var showingTodayTasks = false
+    @State private var draggedCategory: TaskCategory?
     
-    @AppStorage("backgroundColor") private var backgroundColor = Color.white.toHex()
+    @AppStorage("clockFaceColor") private var clockFaceColor = Color.white.toHex()
     @AppStorage("isDarkMode") private var isDarkMode = false
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -19,9 +20,9 @@ struct ClockView: View {
         NavigationView {
             VStack {
                 Spacer()
-                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel)
+                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor) ?? .white)
                 Spacer()
-                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask)
+                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory)
             }
             .navigationTitle(formattedDate)
             .toolbar {
@@ -62,7 +63,7 @@ struct ClockView: View {
                 TodayTasksView(viewModel: viewModel)
             }
         }
-        .background(Color(hex: backgroundColor))
+        .background(Color(hex: clockFaceColor))
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .onReceive(timer) { _ in
             currentDate = Date()
@@ -80,6 +81,7 @@ struct ClockView: View {
 struct CategoryDockBar: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var showingAddTask: Bool
+    @Binding var draggedCategory: TaskCategory?
     @State private var isEditMode = false
     @State private var editingCategory: TaskCategory?
     
@@ -97,6 +99,10 @@ struct CategoryDockBar: View {
                 .overlay(
                     isEditMode ? AnyView(editOverlay) : AnyView(EmptyView())
                 )
+                .onDrag {
+                    self.draggedCategory = category
+                    return NSItemProvider(object: category.rawValue as NSString)
+                }
             }
             
             if isEditMode {
@@ -161,12 +167,16 @@ struct ClockFaceView: View {
     let currentDate: Date
     let tasks: [Task]
     @ObservedObject var viewModel: ClockViewModel
+    @Binding var draggedCategory: TaskCategory?
     @State private var selectedTask: Task?
     @State private var showingTaskDetail = false
+    @State private var dropLocation: CGPoint?
+    let clockFaceColor: Color
     
     var body: some View {
         ZStack {
             Circle()
+                .fill(clockFaceColor)
                 .stroke(Color.gray, lineWidth: 2)
             
             TaskArcsView(tasks: tasks, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
@@ -174,16 +184,64 @@ struct ClockFaceView: View {
             ClockMarksView()
             
             ClockHandView(currentDate: currentDate)
+            
+            if let location = dropLocation {
+                Circle()
+                    .fill(draggedCategory?.color ?? .clear)
+                    .frame(width: 20, height: 20)
+                    .position(location)
+            }
         }
         .aspectRatio(1, contentMode: .fit)
-        .frame(height: UIScreen.main.bounds.width * 0.7) // Увеличиваем размер в 1.4 раза
+        .frame(height: UIScreen.main.bounds.width * 0.7)
         .padding()
         .animation(.spring(), value: tasks)
+        .onDrop(of: [.text], isTargeted: nil) { providers, location in
+            guard let category = draggedCategory else { return false }
+            
+            let dropPoint = location
+            self.dropLocation = dropPoint
+            
+            let time = timeForLocation(dropPoint)
+            
+            // Создаем новую задачу с учетом структуры Task
+            let newTask = Task(
+                id: UUID(),
+                title: "Новая задача",
+                startTime: time,
+                duration: 3600, // 1 час по умолчанию
+                color: category.color,
+                icon: category.iconName,
+                category: category,
+                isCompleted: false
+            )
+            viewModel.addTask(newTask)
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                self.dropLocation = nil
+            }
+            
+            return true
+        }
         .sheet(isPresented: $showingTaskDetail) {
             if let task = selectedTask {
                 TaskDetailView(task: task, viewModel: viewModel, isPresented: $showingTaskDetail)
             }
         }
+    }
+    
+    private func timeForLocation(_ location: CGPoint) -> Date {
+        let center = CGPoint(x: UIScreen.main.bounds.width * 0.35, y: UIScreen.main.bounds.width * 0.35)
+        let vector = CGVector(dx: location.x - center.x, dy: location.y - center.y)
+        let angle = atan2(vector.dy, vector.dx)
+        let normalizedAngle = (angle + .pi / 2).truncatingRemainder(dividingBy: .pi * 2)
+        let hours = normalizedAngle / (.pi / 12)
+        
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: currentDate)
+        components.hour = Int(hours)
+        components.minute = Int((hours.truncatingRemainder(dividingBy: 1)) * 60)
+        
+        return Calendar.current.date(from: components) ?? currentDate
     }
 }
 
@@ -363,7 +421,7 @@ struct TaskDetailView: View {
                 
                 Section {
                     Button("Редактировать") {
-                        // Здесь мы можем открыть TaskEditorView для редактирования
+                        // Здесь мы можем открыть TaskEditorView для ред��ктирования
                     }
                     Button("Удалить", role: .destructive) {
                         viewModel.removeTask(task)
@@ -371,7 +429,7 @@ struct TaskDetailView: View {
                     }
                 }
             }
-            .navigationTitle("Инфомация о задаче")
+            .navigationTitle("нфомация о задае")
             .navigationBarItems(trailing: Button("Закрыть") {
                 isPresented = false
             })

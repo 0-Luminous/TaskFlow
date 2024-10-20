@@ -12,9 +12,9 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("sortOption") private var sortOption = SortOption.startTime.rawValue
-    @AppStorage("backgroundColor") private var backgroundColor = Color.white.toHex()
+    @AppStorage("clockFaceColor") private var clockFaceColor = Color.white.toHex()
     
-    @State private var tempBackgroundColor = Color.white
+    @State private var tempClockFaceColor = Color.white
     
     enum SortOption: String, CaseIterable, Identifiable {
         case startTime = "Началу"
@@ -29,9 +29,9 @@ struct SettingsView: View {
             List {
                 Section(header: Text("Внешний вид")) {
                     Toggle("Темная тема", isOn: $isDarkMode)
-                    ColorPicker("Цвет фона", selection: $tempBackgroundColor)
-                        .onChange(of: tempBackgroundColor) { oldValue, newValue in
-                            backgroundColor = newValue.toHex()
+                    ColorPicker("Цвет циферблата", selection: $tempClockFaceColor)
+                        .onChange(of: tempClockFaceColor) { oldValue, newValue in
+                            clockFaceColor = newValue.toHex()
                         }
                 }
                 
@@ -66,7 +66,7 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            tempBackgroundColor = Color(hex: backgroundColor)
+            tempClockFaceColor = Color(hex: clockFaceColor)
         }
     }
     
@@ -74,8 +74,8 @@ struct SettingsView: View {
         isDarkMode = false
         notificationsEnabled = true
         sortOption = SortOption.startTime.rawValue
-        backgroundColor = Color.white.toHex()
-        tempBackgroundColor = .white
+        clockFaceColor = Color.white.toHex()
+        tempClockFaceColor = .white
     }
 }
 
