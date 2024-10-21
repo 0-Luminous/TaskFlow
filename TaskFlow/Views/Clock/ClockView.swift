@@ -10,6 +10,7 @@ struct ClockView: View {
     @State private var currentDate = Date()
     @State private var showingTodayTasks = false
     @State private var draggedCategory: TaskCategory?
+    @State private var showingCategoryEditor = false
     
     @AppStorage("clockFaceColor") private var clockFaceColor = Color.white.toHex()
     @AppStorage("isDarkMode") private var isDarkMode = false
@@ -20,9 +21,9 @@ struct ClockView: View {
         NavigationView {
             VStack {
                 Spacer()
-                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor) ?? .white)
+                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor))
                 Spacer()
-                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory)
+                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory, showingCategoryEditor: $showingCategoryEditor)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -36,8 +37,13 @@ struct ClockView: View {
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showingSettings = true }) {
-                        Image(systemName: "gear")
+                    HStack {
+                        Button(action: { showingSettings = true }) {
+                            Image(systemName: "gear")
+                        }
+                        Button(action: { showingStatistics = true }) {
+                            Image(systemName: "chart.bar")
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -45,11 +51,6 @@ struct ClockView: View {
                         Button(action: { showingTaskFlow = true }) {
                             Image(systemName: "calendar")
                         }
-                        
-                        Button(action: { showingStatistics = true }) {
-                            Image(systemName: "chart.bar")
-                        }
-                        
                         Button(action: { showingTodayTasks = true }) {
                             Image(systemName: "list.bullet")
                         }
@@ -70,6 +71,9 @@ struct ClockView: View {
             }
             .sheet(isPresented: $showingTodayTasks) {
                 TodayTasksView(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showingCategoryEditor) {
+                CategoryEditorView(viewModel: viewModel, isPresented: $showingCategoryEditor, clockOffset: .constant(0))
             }
         }
         .background(Color(hex: clockFaceColor))
@@ -98,6 +102,7 @@ struct CategoryDockBar: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var showingAddTask: Bool
     @Binding var draggedCategory: TaskCategory?
+    @Binding var showingCategoryEditor: Bool
     @State private var isEditMode = false
     @State private var editingCategory: TaskCategory?
     
@@ -112,9 +117,6 @@ struct CategoryDockBar: View {
                         showingAddTask = true
                     }
                 })
-                .overlay(
-                    isEditMode ? AnyView(editOverlay) : AnyView(EmptyView())
-                )
                 .onDrag {
                     self.draggedCategory = category
                     return NSItemProvider(object: category.rawValue as NSString)
@@ -123,9 +125,9 @@ struct CategoryDockBar: View {
             
             if isEditMode {
                 Button(action: {
-                    // Действие для добавления новой категории
+                    showingCategoryEditor = true
                 }) {
-                    Image(systemName: "plus.circle")
+                    Image(systemName: "pencil.circle.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 30, height: 30)
@@ -146,18 +148,6 @@ struct CategoryDockBar: View {
                     }
                 }
         )
-    }
-    
-    private var editOverlay: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                Image(systemName: "minus.circle.fill")
-                    .foregroundColor(.red)
-                    .padding(5)
-            }
-        }
     }
 }
 
