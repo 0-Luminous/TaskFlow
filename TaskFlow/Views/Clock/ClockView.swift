@@ -24,8 +24,17 @@ struct ClockView: View {
                 Spacer()
                 CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory)
             }
-            .navigationTitle(formattedDate)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    VStack {
+                        Text(formattedDate)
+                            .font(.headline)
+                        Text(formattedWeekday)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+                }
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: { showingSettings = true }) {
                         Image(systemName: "gear")
@@ -75,6 +84,13 @@ struct ClockView: View {
         formatter.dateFormat = "d MMMM yyyy"
         formatter.locale = Locale(identifier: "ru_RU")
         return formatter.string(from: currentDate)
+    }
+    
+    private var formattedWeekday: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        formatter.locale = Locale(identifier: "ru_RU")
+        return formatter.string(from: currentDate).capitalized
     }
 }
 
@@ -421,7 +437,7 @@ struct TaskDetailView: View {
                 
                 Section {
                     Button("Редактировать") {
-                        // Здесь мы можем открыть TaskEditorView для ред��ктирования
+                        // Здесь мы можем открыть TaskEditorView для редктирования
                     }
                     Button("Удалить", role: .destructive) {
                         viewModel.removeTask(task)
