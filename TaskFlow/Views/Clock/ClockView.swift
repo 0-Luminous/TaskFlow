@@ -58,7 +58,7 @@ struct ClockView: View {
                 }
             }
             .sheet(isPresented: $showingAddTask) {
-                AddTaskView(viewModel: viewModel, isPresented: $showingAddTask)
+                TaskEditorView(viewModel: viewModel, isPresented: $showingAddTask)
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()

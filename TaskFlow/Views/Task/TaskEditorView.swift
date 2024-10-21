@@ -9,10 +9,23 @@ struct TaskEditorView: View {
     @State private var isRepeating = false
     @State private var repeatPattern = RepeatPattern(type: .daily, count: 1)
     
-    init(viewModel: ClockViewModel, task: Task, isPresented: Binding<Bool>) {
+    init(viewModel: ClockViewModel, task: Task? = nil, isPresented: Binding<Bool>) {
         self.viewModel = viewModel
         self._isPresented = isPresented
-        self._editedTask = State(initialValue: task)
+        if let task = task {
+            self._editedTask = State(initialValue: task)
+        } else {
+            self._editedTask = State(initialValue: Task(
+                id: UUID(),
+                title: "",
+                startTime: Date(),
+                duration: 3600,
+                color: .blue,
+                icon: "circle",
+                category: .work,
+                isCompleted: false
+            ))
+        }
     }
     
     var body: some View {
@@ -21,15 +34,19 @@ struct TaskEditorView: View {
                 Section(header: Text("Основная информация")) {
                     TextField("Название задачи", text: $editedTask.title)
                     DatePicker("Время начала", selection: $editedTask.startTime, displayedComponents: [.hourAndMinute, .date])
-                    DatePicker("Конец", selection: Binding(
-                        get: { editedTask.startTime.addingTimeInterval(editedTask.duration) },
-                        set: { editedTask.duration = $0.timeIntervalSince(editedTask.startTime) }
-                    ), in: editedTask.startTime..., displayedComponents: [.hourAndMinute, .date])
+                    Picker("Продолжительность", selection: $editedTask.duration) {
+                        Text("30 минут").tag(TimeInterval(1800))
+                        Text("1 час").tag(TimeInterval(3600))
+                        Text("1.5 часа").tag(TimeInterval(5400))
+                        Text("2 часа").tag(TimeInterval(7200))
+                        Text("3 часа").tag(TimeInterval(10800))
+                        Text("4 часа").tag(TimeInterval(14400))
+                    }
                 }
                 
                 Section(header: Text("Категория")) {
                     Picker("Категория", selection: $editedTask.category) {
-                        ForEach(viewModel.categories, id: \.self) { category in
+                        ForEach(TaskCategory.allCases, id: \.self) { category in
                             Label(category.rawValue, systemImage: category.iconName)
                                 .foregroundColor(category.color)
                                 .tag(category)
@@ -99,7 +116,16 @@ struct TaskEditorView_Previews: PreviewProvider {
     static var previews: some View {
         TaskEditorView(
             viewModel: ClockViewModel(),
-            task: Task(id: UUID(), title: "Пример задачи", startTime: Date(), duration: 3600, color: .blue, icon: "circle", category: .work),
+            task: Task(
+                id: UUID(),
+                title: "Пример задачи",
+                startTime: Date(),
+                duration: 3600,
+                color: .blue,
+                icon: "circle",
+                category: .work,
+                isCompleted: false
+            ),
             isPresented: .constant(true)
         )
     }
@@ -108,7 +134,6 @@ struct TaskEditorView_Previews: PreviewProvider {
 #Preview {
     TaskEditorView(
         viewModel: ClockViewModel(),
-        task: Task(id: UUID(), title: "Пример задачи", startTime: Date(), duration: 3600, color: .blue, icon: "circle", category: .work),
         isPresented: .constant(true)
     )
 }
