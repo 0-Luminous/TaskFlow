@@ -35,16 +35,21 @@ class ClockViewModel: ObservableObject {
 
     func addTask(_ task: Task) {
         tasks.append(task)
+        tasks.sort { $0.startTime < $1.startTime }
+        saveTasks()
     }
 
     func updateTask(_ updatedTask: Task) {
         if let index = tasks.firstIndex(where: { $0.id == updatedTask.id }) {
             tasks[index] = updatedTask
+            tasks.sort { $0.startTime < $1.startTime }
+            saveTasks()
         }
     }
 
     func removeTask(_ task: Task) {
         tasks.removeAll { $0.id == task.id }
+        saveTasks()
     }
     
     func addCategory(name: String, color: Color, icon: String) {
@@ -57,14 +62,8 @@ class ClockViewModel: ObservableObject {
     }
 
     private func saveTasks() {
-        persistence.saveTasks(tasks) { result in
-            switch result {
-            case .success:
-                print("Tasks saved successfully")
-            case .failure(let error):
-                print("Failed to save tasks: \(error)")
-            }
-        }
+        // Реализуйте сохранение задач (например, в UserDefaults или Core Data)
+        print("Сохранение задач: \(tasks)") // Добавьте эту строку для отладки
     }
 
     private func loadTasks() {

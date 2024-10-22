@@ -51,6 +51,10 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
         category = TaskCategory.allCases.first { $0.rawValue == categoryRawValue } ?? .work
         isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
     }
+
+    static func == (lhs: Task, rhs: Task) -> Bool {
+        lhs.id == rhs.id
+    }
 }
 
 struct TaskCategory: Hashable, Identifiable, Codable {

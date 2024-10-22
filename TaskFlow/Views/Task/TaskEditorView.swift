@@ -5,6 +5,7 @@ struct TaskEditorView: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var isPresented: Bool
     @State private var editedTask: Task
+    @State private var endTime: Date
     @State private var showingDeleteConfirmation = false
     @State private var isRepeating = false
     @State private var repeatPattern = RepeatPattern(type: .daily, count: 1)
@@ -14,8 +15,9 @@ struct TaskEditorView: View {
         self._isPresented = isPresented
         if let task = task {
             self._editedTask = State(initialValue: task)
+            self._endTime = State(initialValue: task.startTime.addingTimeInterval(task.duration))
         } else {
-            self._editedTask = State(initialValue: Task(
+            let newTask = Task(
                 id: UUID(),
                 title: "",
                 startTime: Date(),
@@ -24,7 +26,9 @@ struct TaskEditorView: View {
                 icon: "circle",
                 category: .work,
                 isCompleted: false
-            ))
+            )
+            self._editedTask = State(initialValue: newTask)
+            self._endTime = State(initialValue: newTask.startTime.addingTimeInterval(newTask.duration))
         }
     }
     
@@ -34,14 +38,13 @@ struct TaskEditorView: View {
                 Section(header: Text("Основная информация")) {
                     TextField("Название задачи", text: $editedTask.title)
                     DatePicker("Время начала", selection: $editedTask.startTime, displayedComponents: [.hourAndMinute, .date])
-                    Picker("Продолжительность", selection: $editedTask.duration) {
-                        Text("30 минут").tag(TimeInterval(1800))
-                        Text("1 час").tag(TimeInterval(3600))
-                        Text("1.5 часа").tag(TimeInterval(5400))
-                        Text("2 часа").tag(TimeInterval(7200))
-                        Text("3 часа").tag(TimeInterval(10800))
-                        Text("4 часа").tag(TimeInterval(14400))
-                    }
+                    DatePicker("Время окончания", selection: $endTime, in: editedTask.startTime..., displayedComponents: [.hourAndMinute, .date])
+                        .onChange(of: endTime) { oldValue, newValue in
+                            editedTask.duration = newValue.timeIntervalSince(editedTask.startTime)
+                        }
+                        .onChange(of: editedTask.startTime) { oldValue, newValue in
+                            endTime = newValue.addingTimeInterval(editedTask.duration)
+                        }
                 }
                 
                 Section(header: Text("Категория")) {
