@@ -21,7 +21,20 @@ struct ClockView: View {
         NavigationView {
             VStack {
                 Spacer()
-                ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor))
+                ZStack {
+                    // Темное внешнее кольцо
+                    Circle()
+                        .stroke(Color.gray.opacity(0.3), lineWidth: 20)
+                        .frame(width: UIScreen.main.bounds.width * 0.8, height: UIScreen.main.bounds.width * 0.8)
+                    
+                    // Маркеры часов
+                    ForEach(0..<24) { hour in
+                        ClockMarker(hour: hour)
+                    }
+                    
+                    // Существующий циферблат
+                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor))
+                }
                 Spacer()
                 CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory, showingCategoryEditor: $showingCategoryEditor)
             }
@@ -370,17 +383,19 @@ struct ClockHandView: View {
         GeometryReader { geometry in
             Path { path in
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = min(geometry.size.width, geometry.size.height) / 2 - 20
+                let radius = min(geometry.size.width, geometry.size.height) / 2
+                let hourHandLength = radius * 1.22
+                // Увеличиваем длину стрелки
                 let angle = angleForTime(currentDate)
                 let endpoint = CGPoint(
-                    x: center.x + radius * CGFloat(cos(angle.radians)),
-                    y: center.y + radius * CGFloat(sin(angle.radians))
+                    x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
+                    y: center.y + hourHandLength * CGFloat(sin(angle.radians))
                 )
                 
                 path.move(to: center)
                 path.addLine(to: endpoint)
             }
-            .stroke(colorScheme == .dark ? Color.red : Color.blue, lineWidth: 2)
+            .stroke(colorScheme == .dark ? Color.red : Color.blue, lineWidth: 3)  //Увеличиваем толщину стрелки
         }
     }
     
@@ -459,5 +474,19 @@ struct TaskDetailView: View {
 struct ClockView_Previews: PreviewProvider {
     static var previews: some View {
         ClockView()
+    }
+}
+
+struct ClockMarker: View {
+    let hour: Int
+    
+    var body: some View {
+        VStack {
+            Rectangle()
+                .fill(Color.gray.opacity(0.5))
+                .frame(width: hour % 3 == 0 ? 3 : 1, height: hour % 3 == 0 ? 15 : 10)
+        }
+        .offset(y: -UIScreen.main.bounds.width * 0.38)
+        .rotationEffect(Angle.degrees(Double(hour) / 24 * 360))
     }
 }
