@@ -12,9 +12,11 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("sortOption") private var sortOption = SortOption.startTime.rawValue
-    @AppStorage("clockFaceColor") private var clockFaceColor = Color.white.toHex()
+    @AppStorage("lightModeClockFaceColor") private var lightModeClockFaceColor = Color.white.toHex()
+    @AppStorage("darkModeClockFaceColor") private var darkModeClockFaceColor = Color.black.toHex()
     
-    @State private var tempClockFaceColor = Color.white
+    @State private var tempLightModeClockFaceColor = Color.white
+    @State private var tempDarkModeClockFaceColor = Color.black
     
     enum SortOption: String, CaseIterable, Identifiable {
         case startTime = "Началу"
@@ -29,9 +31,13 @@ struct SettingsView: View {
             List {
                 Section(header: Text("Внешний вид")) {
                     Toggle("Темная тема", isOn: $isDarkMode)
-                    ColorPicker("Цвет циферблата", selection: $tempClockFaceColor)
-                        .onChange(of: tempClockFaceColor) { oldValue, newValue in
-                            clockFaceColor = newValue.toHex()
+                    ColorPicker("Цвет циферблата (светлая тема)", selection: $tempLightModeClockFaceColor)
+                        .onChange(of: tempLightModeClockFaceColor) { _, newValue in
+                            lightModeClockFaceColor = newValue.toHex()
+                        }
+                    ColorPicker("Цвет циферблата (темная тема)", selection: $tempDarkModeClockFaceColor)
+                        .onChange(of: tempDarkModeClockFaceColor) { _, newValue in
+                            darkModeClockFaceColor = newValue.toHex()
                         }
                 }
                 
@@ -66,7 +72,8 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            tempClockFaceColor = Color(hex: clockFaceColor)
+            tempLightModeClockFaceColor = Color(hex: lightModeClockFaceColor)
+            tempDarkModeClockFaceColor = Color(hex: darkModeClockFaceColor)
         }
     }
     
@@ -74,8 +81,10 @@ struct SettingsView: View {
         isDarkMode = false
         notificationsEnabled = true
         sortOption = SortOption.startTime.rawValue
-        clockFaceColor = Color.white.toHex()
-        tempClockFaceColor = .white
+        lightModeClockFaceColor = Color.white.toHex()
+        darkModeClockFaceColor = Color.black.toHex()
+        tempLightModeClockFaceColor = .white
+        tempDarkModeClockFaceColor = .black
     }
 }
 

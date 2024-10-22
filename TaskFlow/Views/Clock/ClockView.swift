@@ -12,8 +12,11 @@ struct ClockView: View {
     @State private var draggedCategory: TaskCategory?
     @State private var showingCategoryEditor = false
     
-    @AppStorage("clockFaceColor") private var clockFaceColor = Color.white.toHex()
+    @AppStorage("lightModeClockFaceColor") private var lightModeClockFaceColor = Color.white.toHex()
+    @AppStorage("darkModeClockFaceColor") private var darkModeClockFaceColor = Color.black.toHex()
     @AppStorage("isDarkMode") private var isDarkMode = false
+    
+    @Environment(\.colorScheme) var colorScheme
     
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
     
@@ -33,7 +36,7 @@ struct ClockView: View {
                     }
                     
                     // Существующий циферблат
-                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: Color(hex: clockFaceColor))
+                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: currentClockFaceColor)
                 }
                 Spacer()
                 CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory, showingCategoryEditor: $showingCategoryEditor)
@@ -89,11 +92,16 @@ struct ClockView: View {
                 CategoryEditorView(viewModel: viewModel, isPresented: $showingCategoryEditor, clockOffset: .constant(0))
             }
         }
-        .background(Color(hex: clockFaceColor))
+        .background(currentClockFaceColor)
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .onReceive(timer) { _ in
             currentDate = Date()
         }
+    }
+    
+    private var currentClockFaceColor: Color {
+        let hexColor = colorScheme == .dark ? darkModeClockFaceColor : lightModeClockFaceColor
+        return Color(hex: hexColor) // Удалим оператор ??
     }
     
     private var formattedDate: String {
@@ -442,7 +450,7 @@ struct TaskDetailView: View {
                 
                 Section {
                     Button("Редактировать") {
-                        // Здесь мы можем открыть TaskEditorView для редктирования
+                        // Здесь мы можем открыть TaskEditorView для ректирования
                     }
                     Button("Удалить", role: .destructive) {
                         viewModel.removeTask(task)
@@ -450,7 +458,7 @@ struct TaskDetailView: View {
                     }
                 }
             }
-            .navigationTitle("нфомация о задае")
+            .navigationTitle("Инфо")
             .navigationBarItems(trailing: Button("Закрыть") {
                 isPresented = false
             })
