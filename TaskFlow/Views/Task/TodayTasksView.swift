@@ -16,13 +16,6 @@ struct TodayTasksView: View {
                 .onDelete(perform: deleteTasks)
             }
             .navigationTitle("Поток")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { showingAddTask = true }) {
-                        Image(systemName: "plus")
-                    }
-                }
-            }
             .sheet(isPresented: $showingAddTask) {
                 TaskEditorView(viewModel: viewModel, task: Task(id: UUID(), title: "", startTime: Date(), duration: 3600, color: .blue, icon: "circle", category: .work), isPresented: $showingAddTask)
             }

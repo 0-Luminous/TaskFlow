@@ -409,7 +409,8 @@ struct ClockHandView: View {
             Path { path in
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 let radius = min(geometry.size.width, geometry.size.height) / 2
-                let hourHandLength = radius * 0.6 // Уменьшаем длину стрелки
+                let hourHandLength = radius * 1.22
+                // Уменьшаем длину стрелки
                 let angle = angleForTime(currentDate)
                 let endpoint = CGPoint(
                     x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
@@ -428,7 +429,7 @@ struct ClockHandView: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90) // Изменяем начальный угол
+        return Angle(degrees: Double(totalMinutes) / 2 - 90) // Изменяем формулу для правильного направления
     }
 }
 
