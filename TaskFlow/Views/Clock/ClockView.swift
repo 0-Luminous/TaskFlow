@@ -295,16 +295,33 @@ struct ClockTaskArc: View {
     @Binding var showingTaskDetail: Bool
     
     var body: some View {
-        Path { path in
-            let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-            let radius = min(geometry.size.width, geometry.size.height) / 2 - 10
-            let startAngle = self.angleForTime(task.startTime)
-            let endTime = task.startTime.addingTimeInterval(task.duration)
-            let endAngle = self.angleForTime(endTime)
+        let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+        let radius = min(geometry.size.width, geometry.size.height) / 2
+        let startAngle = angleForTime(task.startTime)
+        let endTime = task.startTime.addingTimeInterval(task.duration)
+        let endAngle = angleForTime(endTime)
+        
+        ZStack {
+            Path { path in
+                path.addArc(center: center, radius: radius + 10, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+            }
+            .stroke(task.category.color, lineWidth: 20)
             
-            path.addArc(center: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+            // Добавляем иконку категории в середине дуги
+            let midAngle = Angle(degrees: (startAngle.degrees + endAngle.degrees) / 2)
+            Image(systemName: task.category.iconName)
+                .font(.system(size: 12))
+                .foregroundColor(.white)
+                .background(
+                    Circle()
+                        .fill(task.category.color)
+                        .frame(width: 20, height: 20)
+                )
+                .position(
+                    x: center.x + (radius + 20) * cos(midAngle.radians),
+                    y: center.y + (radius + 20) * sin(midAngle.radians)
+                )
         }
-        .stroke(task.category.color, lineWidth: 20)
         .onTapGesture {
             selectedTask = task
             showingTaskDetail = true
@@ -316,7 +333,7 @@ struct ClockTaskArc: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 + 90)
+        return Angle(degrees: Double(totalMinutes) / 4 - 90)
     }
 }
 
@@ -392,8 +409,7 @@ struct ClockHandView: View {
             Path { path in
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 let radius = min(geometry.size.width, geometry.size.height) / 2
-                let hourHandLength = radius * 1.22
-                // Увеличиваем длину стрелки
+                let hourHandLength = radius * 0.6 // Уменьшаем длину стрелки
                 let angle = angleForTime(currentDate)
                 let endpoint = CGPoint(
                     x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
@@ -403,7 +419,7 @@ struct ClockHandView: View {
                 path.move(to: center)
                 path.addLine(to: endpoint)
             }
-            .stroke(colorScheme == .dark ? Color.red : Color.blue, lineWidth: 3)  //Увеличиваем толщину стрелки
+            .stroke(colorScheme == .dark ? Color.red : Color.blue, lineWidth: 3)
         }
     }
     
@@ -412,7 +428,7 @@ struct ClockHandView: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 + 90)
+        return Angle(degrees: Double(totalMinutes) / 4 - 90) // Изменяем начальный угол
     }
 }
 
