@@ -128,20 +128,20 @@ struct CategoryDockBar: View {
     @State private var editingCategory: TaskCategory?
     
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: 10) {
             ForEach(viewModel.categories, id: \.self) { category in
                 CategoryButton(category: category)
-                .onDrag {
-                    self.draggedCategory = category
-                    return NSItemProvider(object: category.rawValue as NSString)
-                }
+                    .onDrag {
+                        self.draggedCategory = category
+                        return NSItemProvider(object: category.rawValue as NSString)
+                    }
             }
             
             if isEditMode {
                 Button(action: {
                     showingCategoryEditor = true
                 }) {
-                    Image(systemName: "pencil.circle.fill")
+                    Image(systemName: "plus.circle.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                         .frame(width: 30, height: 30)
@@ -167,16 +167,36 @@ struct CategoryDockBar: View {
 
 struct CategoryButton: View {
     let category: TaskCategory
+    @State private var isDragging = false
     
     var body: some View {
         VStack {
-            Image(systemName: category.iconName)
-                .font(.system(size: 24))
+            ZStack {
+                Circle()
+                    .fill(category.color.opacity(0.2))
+                    .frame(width: 50, height: 50)
+                
+                Image(systemName: category.iconName)
+                    .font(.system(size: 24))
+                    .foregroundColor(category.color)
+            }
+            .scaleEffect(isDragging ? 1.1 : 1.0)
+            .animation(.spring(), value: isDragging)
+            
             Text(category.rawValue)
                 .font(.caption2)
+                .foregroundColor(category.color)
         }
-        .foregroundColor(category.color)
-        .frame(width: 50, height: 50)
+        .frame(width: 60, height: 70)
+        .gesture(
+            DragGesture()
+                .onChanged { _ in
+                    isDragging = true
+                }
+                .onEnded { _ in
+                    isDragging = false
+                }
+        )
     }
 }
 
