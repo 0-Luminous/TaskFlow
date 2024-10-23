@@ -130,14 +130,7 @@ struct CategoryDockBar: View {
     var body: some View {
         HStack(spacing: 20) {
             ForEach(viewModel.categories, id: \.self) { category in
-                CategoryButton(category: category, action: {
-                    if isEditMode {
-                        editingCategory = category
-                    } else {
-                        viewModel.selectedCategory = category
-                        showingAddTask = true
-                    }
-                })
+                CategoryButton(category: category)
                 .onDrag {
                     self.draggedCategory = category
                     return NSItemProvider(object: category.rawValue as NSString)
@@ -174,19 +167,16 @@ struct CategoryDockBar: View {
 
 struct CategoryButton: View {
     let category: TaskCategory
-    let action: () -> Void
     
     var body: some View {
-        Button(action: action) {
-            VStack {
-                Image(systemName: category.iconName)
-                    .font(.system(size: 24))
-                Text(category.rawValue)
-                    .font(.caption2)
-            }
-            .foregroundColor(category.color)
-            .frame(width: 50, height: 50)
+        VStack {
+            Image(systemName: category.iconName)
+                .font(.system(size: 24))
+            Text(category.rawValue)
+                .font(.caption2)
         }
+        .foregroundColor(category.color)
+        .frame(width: 50, height: 50)
     }
 }
 
