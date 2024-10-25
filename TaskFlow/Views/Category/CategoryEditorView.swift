@@ -6,12 +6,13 @@ struct CategoryEditorView: View {
     @Binding var clockOffset: CGFloat
     @State private var newCategory = TaskCategory(rawValue: "", color: .blue, iconName: "circle")
     @State private var editingCategory: TaskCategory?
+    @FocusState private var isCategoryNameFocused: Bool
     
     var body: some View {
         NavigationView {
             List {
                 Section(header: Text("Добавить новую категорию")) {
-                    CategoryFormView(category: $newCategory)
+                    CategoryFormView(category: $newCategory, isFocused: $isCategoryNameFocused)
                     Button(action: addCategory) {
                         Label("Добавить категорию", systemImage: "plus.circle")
                     }
@@ -39,11 +40,17 @@ struct CategoryEditorView: View {
                 CategoryEditView(viewModel: viewModel, category: category, isPresented: $editingCategory)
             }
         }
+        .onAppear {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                isCategoryNameFocused = true
+            }
+        }
     }
     
     private func addCategory() {
         viewModel.addCategory(name: newCategory.rawValue, color: newCategory.color, icon: newCategory.iconName)
         newCategory = TaskCategory(rawValue: "", color: .blue, iconName: "circle")
+        isCategoryNameFocused = true
     }
     
     private func deleteCategories(at offsets: IndexSet) {
@@ -53,6 +60,7 @@ struct CategoryEditorView: View {
 
 struct CategoryFormView: View {
     @Binding var category: TaskCategory
+    @FocusState.Binding var isFocused: Bool
     
     var body: some View {
         TextField("Название категории", text: Binding(
@@ -61,6 +69,9 @@ struct CategoryFormView: View {
                 category = TaskCategory(rawValue: newValue, color: category.color, iconName: category.iconName)
             }
         ))
+        .focused($isFocused)
+        .submitLabel(.done)
+        
         ColorPicker("Цвет категории", selection: Binding(
             get: { category.color },
             set: { newValue in
@@ -191,4 +202,3 @@ struct CategoryEditView: View {
 enum SFSymbols {
     static let categoryIcons = ["circle", "square", "triangle", "star", "heart", "flag", "tag", "bookmark", "book", "pencil", "folder", "paperclip", "link", "person", "house", "car", "airplane", "gift", "bell", "clock"]
 }
-

@@ -132,6 +132,7 @@ struct CategoryDockBar: View {
     @State private var isEditMode = false
     @Binding var selectedCategory: TaskCategory?
     @State private var currentPage = 0
+    @State private var lastNonEditPage = 0 // Добавляем новое состояние для хранения последней неотредактированной страницы
     
     let categoriesPerPage = 4
     let categoryWidth: CGFloat = 80
@@ -188,9 +189,17 @@ struct CategoryDockBar: View {
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in
                     withAnimation {
+                        if !isEditMode {
+                            // Сохраняем текущую страницу перед входом в режим редактирования
+                            lastNonEditPage = currentPage
+                        }
                         isEditMode.toggle()
                         if isEditMode {
-                            currentPage = 0
+                            // Переходим на страницу с кнопкой "Добавить"
+                            currentPage = pageWithAddButton
+                        } else {
+                            // Возвращаемся на последнюю неотредактированную страницу
+                            currentPage = min(lastNonEditPage, numberOfPages - 1)
                         }
                     }
                 }
@@ -221,9 +230,9 @@ struct CategoryDockBar: View {
     private var numberOfPages: Int {
         let categoriesCount = viewModel.categories.count
         if isEditMode {
-            return (categoriesCount + categoriesPerPage) / categoriesPerPage
+            return max((categoriesCount + categoriesPerPage) / categoriesPerPage, 2)
         } else {
-            return (categoriesCount + categoriesPerPage - 1) / categoriesPerPage
+            return max((categoriesCount + categoriesPerPage - 1) / categoriesPerPage, 1)
         }
     }
     
@@ -233,14 +242,13 @@ struct CategoryDockBar: View {
         return Array(viewModel.categories[startIndex..<endIndex])
     }
     
+    private var pageWithAddButton: Int {
+        let fullPages = viewModel.categories.count / categoriesPerPage
+        return fullPages
+    }
+    
     private func shouldShowAddButton(on page: Int) -> Bool {
-        let categoriesOnThisPage = categoriesForPage(page).count
-        if page == numberOfPages - 1 {
-            return true
-        } else if categoriesOnThisPage < categoriesPerPage {
-            return true
-        }
-        return false
+        return page == pageWithAddButton
     }
 }
 
