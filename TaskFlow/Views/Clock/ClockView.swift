@@ -11,6 +11,7 @@ struct ClockView: View {
     @State private var showingTodayTasks = false
     @State private var draggedCategory: TaskCategory?
     @State private var showingCategoryEditor = false
+    @State private var selectedCategory: TaskCategory?
     
     @AppStorage("lightModeClockFaceColor") private var lightModeClockFaceColor = Color.white.toHex()
     @AppStorage("darkModeClockFaceColor") private var darkModeClockFaceColor = Color.black.toHex()
@@ -25,7 +26,7 @@ struct ClockView: View {
             VStack {
                 Spacer()
                 ZStack {
-                    // Темное внешнее кольцо
+                    // Темное внешн е кольцо
                     Circle()
                         .stroke(Color.gray.opacity(0.3), lineWidth: 20)
                         .frame(width: UIScreen.main.bounds.width * 0.8, height: UIScreen.main.bounds.width * 0.8)
@@ -39,7 +40,11 @@ struct ClockView: View {
                     ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: currentClockFaceColor)
                 }
                 Spacer()
-                CategoryDockBar(viewModel: viewModel, showingAddTask: $showingAddTask, draggedCategory: $draggedCategory, showingCategoryEditor: $showingCategoryEditor)
+                CategoryDockBar(viewModel: viewModel, 
+                                showingAddTask: $showingAddTask, 
+                                draggedCategory: $draggedCategory, 
+                                showingCategoryEditor: $showingCategoryEditor,
+                                selectedCategory: $selectedCategory)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -125,35 +130,53 @@ struct CategoryDockBar: View {
     @Binding var draggedCategory: TaskCategory?
     @Binding var showingCategoryEditor: Bool
     @State private var isEditMode = false
-    @State private var editingCategory: TaskCategory?
+    @Binding var selectedCategory: TaskCategory?
+    
+    let categoriesPerPage = 4
+    let categoryWidth: CGFloat = 80
     
     var body: some View {
-        HStack(spacing: 10) {
-            ForEach(viewModel.categories, id: \.self) { category in
-                CategoryButton(category: category)
-                    .onDrag {
-                        self.draggedCategory = category
-                        return NSItemProvider(object: category.rawValue as NSString)
+        VStack(spacing: 5) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(viewModel.categories) { category in
+                        CategoryButton(category: category, isSelected: selectedCategory == category)
+                            .frame(width: categoryWidth)
+                            .onTapGesture {
+                                selectedCategory = category
+                            }
+                            .onDrag {
+                                self.draggedCategory = category
+                                return NSItemProvider(object: category.id.uuidString as NSString)
+                            }
+                            .onDrop(of: [.text], delegate: DropViewDelegate(item: category, items: $viewModel.categories, draggedItem: $draggedCategory))
                     }
-            }
-            
-            if isEditMode {
-                Button(action: {
-                    showingCategoryEditor = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 30, height: 30)
-                        .foregroundColor(.blue)
+                    
+                    if isEditMode {
+                        Button(action: {
+                            showingCategoryEditor = true
+                        }) {
+                            VStack {
+                                Image(systemName: "plus.circle.fill")
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 40, height: 40)
+                                Text("Добавить")
+                                    .font(.caption)
+                            }
+                            .foregroundColor(.blue)
+                            .frame(width: categoryWidth, height: 80)
+                        }
+                    }
                 }
+                .padding(.horizontal, 10)
             }
+            .frame(height: 90)
         }
-        .padding()
         .background(Color.gray.opacity(0.2))
         .cornerRadius(20)
-        .padding(.horizontal)
-        .padding(.bottom, 8)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 10)
         .gesture(
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in
@@ -167,36 +190,85 @@ struct CategoryDockBar: View {
 
 struct CategoryButton: View {
     let category: TaskCategory
-    @State private var isDragging = false
+    let isSelected: Bool
     
     var body: some View {
-        VStack {
+        VStack(spacing: 5) {
             ZStack {
                 Circle()
                     .fill(category.color.opacity(0.2))
-                    .frame(width: 50, height: 50)
+                    .frame(width: 60, height: 60)
                 
                 Image(systemName: category.iconName)
-                    .font(.system(size: 24))
+                    .font(.system(size: 30))
                     .foregroundColor(category.color)
             }
-            .scaleEffect(isDragging ? 1.1 : 1.0)
-            .animation(.spring(), value: isDragging)
+            .overlay(
+                Circle()
+                    .stroke(isSelected ? category.color : Color.clear, lineWidth: 3)
+            )
             
             Text(category.rawValue)
                 .font(.caption2)
                 .foregroundColor(category.color)
+                .lineLimit(1)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(width: 60, height: 70)
-        .gesture(
-            DragGesture()
-                .onChanged { _ in
-                    isDragging = true
-                }
-                .onEnded { _ in
-                    isDragging = false
-                }
-        )
+        .frame(height: 80)
+        .scaleEffect(isSelected ? 1.1 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: isSelected)
+    }
+}
+
+struct ScrollIndicator: View {
+    let totalItems: Int
+    let visibleItems: Int
+    let currentOffset: CGFloat
+    let itemWidth: CGFloat
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<totalItems, id: \.self) { index in
+                Circle()
+                    .fill(Color.gray)
+                    .frame(width: 6, height: 6)
+                    .opacity(isItemVisible(index) ? 1 : 0.3)
+            }
+        }
+        .padding(.vertical, 4)
+    }
+    
+    private func isItemVisible(_ index: Int) -> Bool {
+        let startIndex = Int(-currentOffset / (itemWidth + 10))
+        return index >= startIndex && index < startIndex + visibleItems
+    }
+}
+
+extension CGFloat {
+    func rounded(toNearest: CGFloat) -> CGFloat {
+        return (self / toNearest).rounded() * toNearest
+    }
+}
+
+struct DropViewDelegate: DropDelegate {
+    let item: TaskCategory
+    @Binding var items: [TaskCategory]
+    @Binding var draggedItem: TaskCategory?
+
+    func performDrop(info: DropInfo) -> Bool {
+        return true
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let draggedItem = self.draggedItem else { return }
+        if draggedItem != item {
+            let from = items.firstIndex(of: draggedItem)!
+            let to = items.firstIndex(of: item)!
+            withAnimation(.default) {
+                self.items.move(fromOffsets: IndexSet(integer: from),
+                                toOffset: to > from ? to + 1 : to)
+            }
+        }
     }
 }
 
