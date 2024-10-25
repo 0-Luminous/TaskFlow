@@ -131,52 +131,55 @@ struct CategoryDockBar: View {
     @Binding var showingCategoryEditor: Bool
     @State private var isEditMode = false
     @Binding var selectedCategory: TaskCategory?
+    @State private var currentPage = 0
     
     let categoriesPerPage = 4
     let categoryWidth: CGFloat = 80
     
     var body: some View {
         VStack(spacing: 5) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    ForEach(viewModel.categories) { category in
-                        CategoryButton(category: category, isSelected: selectedCategory == category)
-                            .frame(width: categoryWidth)
-                            .onTapGesture {
-                                selectedCategory = category
+            TabView(selection: $currentPage) {
+                ForEach(0..<pageCount, id: \.self) { page in
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: categoryWidth))], spacing: 10) {
+                        ForEach(categoriesForPage(page)) { category in
+                            CategoryButton(category: category, isSelected: selectedCategory == category)
+                                .frame(width: categoryWidth, height: 80)
+                                .onTapGesture {
+                                    selectedCategory = category
+                                }
+                                .onDrag {
+                                    self.draggedCategory = category
+                                    return NSItemProvider(object: category.id.uuidString as NSString)
+                                }
+                                .onDrop(of: [.text], delegate: DropViewDelegate(item: category, items: $viewModel.categories, draggedItem: $draggedCategory))
+                        }
+                        
+                        if isEditMode && page == pageCount - 1 {
+                            Button(action: {
+                                showingCategoryEditor = true
+                            }) {
+                                VStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .frame(width: 40, height: 40)
+                                    Text("Добавить")
+                                        .font(.caption)
+                                }
+                                .foregroundColor(.blue)
+                                .frame(width: categoryWidth, height: 80)
                             }
-                            .onDrag {
-                                self.draggedCategory = category
-                                return NSItemProvider(object: category.id.uuidString as NSString)
-                            }
-                            .onDrop(of: [.text], delegate: DropViewDelegate(item: category, items: $viewModel.categories, draggedItem: $draggedCategory))
-                    }
-                    
-                    if isEditMode {
-                        Button(action: {
-                            showingCategoryEditor = true
-                        }) {
-                            VStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 40, height: 40)
-                                Text("Добавить")
-                                    .font(.caption)
-                            }
-                            .foregroundColor(.blue)
-                            .frame(width: categoryWidth, height: 80)
                         }
                     }
+                    .tag(page)
                 }
-                .padding(.horizontal, 10)
             }
             .frame(height: 90)
+            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
         .background(Color.gray.opacity(0.2))
         .cornerRadius(20)
         .padding(.horizontal, 10)
-        .padding(.bottom, 10)
         .gesture(
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in
@@ -185,6 +188,27 @@ struct CategoryDockBar: View {
                     }
                 }
         )
+        
+        // Индикатор страниц под док-баром
+        HStack {
+            ForEach(0..<pageCount, id: \.self) { index in
+                Circle()
+                    .fill(currentPage == index ? Color.blue : Color.gray)
+                    .frame(width: 8, height: 8)
+            }
+        }
+        .padding(.top, 5)
+        .padding(.bottom, 10)
+    }
+    
+    private var pageCount: Int {
+        (viewModel.categories.count + categoriesPerPage - 1) / categoriesPerPage
+    }
+    
+    private func categoriesForPage(_ page: Int) -> [TaskCategory] {
+        let startIndex = page * categoriesPerPage
+        let endIndex = min(startIndex + categoriesPerPage, viewModel.categories.count)
+        return Array(viewModel.categories[startIndex..<endIndex])
     }
 }
 
