@@ -136,6 +136,8 @@ struct CategoryDockBar: View {
     let categoriesPerPage = 4
     let categoryWidth: CGFloat = 80
     
+    @Environment(\.colorScheme) var colorScheme
+    
     var body: some View {
         VStack(spacing: 5) {
             TabView(selection: $currentPage) {
@@ -174,12 +176,14 @@ struct CategoryDockBar: View {
                     .tag(page)
                 }
             }
-            .frame(height: 90)
+            .frame(height: 100) // Увеличили высоту с 90 до 100
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
-        .background(Color.gray.opacity(0.2))
+        .background(backgroundColorForTheme)
         .cornerRadius(20)
+        .shadow(color: shadowColorForTheme, radius: 8, x: 0, y: 4)
         .padding(.horizontal, 10)
+        .padding(.top, 5) // Добавили небольшой отступ сверху
         .gesture(
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in
@@ -193,12 +197,20 @@ struct CategoryDockBar: View {
         HStack {
             ForEach(0..<pageCount, id: \.self) { index in
                 Circle()
-                    .fill(currentPage == index ? Color.blue : Color.gray)
-                    .frame(width: 8, height: 8)
+                    .fill(currentPage == index ? Color.blue : Color.gray.opacity(0.5))
+                    .frame(width: 6, height: 6)
             }
         }
         .padding(.top, 5)
         .padding(.bottom, 10)
+    }
+    
+    private var backgroundColorForTheme: Color {
+        colorScheme == .dark ? Color(white: 0.2) : Color.white.opacity(0.9)
+    }
+    
+    private var shadowColorForTheme: Color {
+        colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.1)
     }
     
     private var pageCount: Int {
