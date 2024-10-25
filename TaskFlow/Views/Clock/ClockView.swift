@@ -26,7 +26,7 @@ struct ClockView: View {
             VStack {
                 Spacer()
                 ZStack {
-                    // Темное внешн е кольцо
+                    // Темное внешн е кльцо
                     Circle()
                         .stroke(Color.gray.opacity(0.3), lineWidth: 20)
                         .frame(width: UIScreen.main.bounds.width * 0.8, height: UIScreen.main.bounds.width * 0.8)
@@ -141,7 +141,7 @@ struct CategoryDockBar: View {
     var body: some View {
         VStack(spacing: 5) {
             TabView(selection: $currentPage) {
-                ForEach(0..<pageCount, id: \.self) { page in
+                ForEach(0..<numberOfPages, id: \.self) { page in
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: categoryWidth))], spacing: 10) {
                         ForEach(categoriesForPage(page)) { category in
                             CategoryButton(category: category, isSelected: selectedCategory == category)
@@ -156,7 +156,7 @@ struct CategoryDockBar: View {
                                 .onDrop(of: [.text], delegate: DropViewDelegate(item: category, items: $viewModel.categories, draggedItem: $draggedCategory))
                         }
                         
-                        if isEditMode && page == pageCount - 1 {
+                        if isEditMode && shouldShowAddButton(on: page) {
                             Button(action: {
                                 showingCategoryEditor = true
                             }) {
@@ -176,33 +176,38 @@ struct CategoryDockBar: View {
                     .tag(page)
                 }
             }
-            .frame(height: 100) // Увеличили высоту с 90 до 100
+            .frame(height: 100)
             .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         }
         .background(backgroundColorForTheme)
         .cornerRadius(20)
         .shadow(color: shadowColorForTheme, radius: 8, x: 0, y: 4)
         .padding(.horizontal, 10)
-        .padding(.top, 5) // Добавили небольшой отступ сверху
+        .padding(.top, 5)
         .gesture(
             LongPressGesture(minimumDuration: 0.5)
                 .onEnded { _ in
                     withAnimation {
                         isEditMode.toggle()
+                        if isEditMode {
+                            currentPage = 0
+                        }
                     }
                 }
         )
         
         // Индикатор страниц под док-баром
-        HStack {
-            ForEach(0..<pageCount, id: \.self) { index in
-                Circle()
-                    .fill(currentPage == index ? Color.blue : Color.gray.opacity(0.5))
-                    .frame(width: 6, height: 6)
+        if numberOfPages > 1 {
+            HStack {
+                ForEach(0..<numberOfPages, id: \.self) { index in
+                    Circle()
+                        .fill(currentPage == index ? Color.blue : Color.gray.opacity(0.5))
+                        .frame(width: 6, height: 6)
+                }
             }
+            .padding(.top, 5)
+            .padding(.bottom, 10)
         }
-        .padding(.top, 5)
-        .padding(.bottom, 10)
     }
     
     private var backgroundColorForTheme: Color {
@@ -213,14 +218,29 @@ struct CategoryDockBar: View {
         colorScheme == .dark ? Color.black.opacity(0.3) : Color.black.opacity(0.1)
     }
     
-    private var pageCount: Int {
-        (viewModel.categories.count + categoriesPerPage - 1) / categoriesPerPage
+    private var numberOfPages: Int {
+        let categoriesCount = viewModel.categories.count
+        if isEditMode {
+            return (categoriesCount + categoriesPerPage) / categoriesPerPage
+        } else {
+            return (categoriesCount + categoriesPerPage - 1) / categoriesPerPage
+        }
     }
     
     private func categoriesForPage(_ page: Int) -> [TaskCategory] {
         let startIndex = page * categoriesPerPage
         let endIndex = min(startIndex + categoriesPerPage, viewModel.categories.count)
         return Array(viewModel.categories[startIndex..<endIndex])
+    }
+    
+    private func shouldShowAddButton(on page: Int) -> Bool {
+        let categoriesOnThisPage = categoriesForPage(page).count
+        if page == numberOfPages - 1 {
+            return true
+        } else if categoriesOnThisPage < categoriesPerPage {
+            return true
+        }
+        return false
     }
 }
 
