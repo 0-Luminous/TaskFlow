@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 extension Color {
     // Преобразование Color в HEX строку
@@ -17,7 +18,7 @@ extension Color {
     }
 
     // Инициализатор для создания Color из HEX строки
-    init(hex: String) {
+    init?(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
         var int: UInt64 = 0
         Scanner(string: hex).scanHexInt64(&int)

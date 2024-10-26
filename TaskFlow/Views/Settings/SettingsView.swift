@@ -72,8 +72,8 @@ struct SettingsView: View {
             }
         }
         .onAppear {
-            tempLightModeClockFaceColor = Color(hex: lightModeClockFaceColor)
-            tempDarkModeClockFaceColor = Color(hex: darkModeClockFaceColor)
+            tempLightModeClockFaceColor = Color(hex: lightModeClockFaceColor) ?? .white
+            tempDarkModeClockFaceColor = Color(hex: darkModeClockFaceColor) ?? .black
         }
     }
     

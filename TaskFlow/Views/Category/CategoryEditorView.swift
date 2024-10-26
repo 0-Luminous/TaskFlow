@@ -4,8 +4,8 @@ struct CategoryEditorView: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var isPresented: Bool
     @Binding var clockOffset: CGFloat
-    @State private var newCategory = TaskCategory(rawValue: "", color: .blue, iconName: "circle")
-    @State private var editingCategory: TaskCategory?
+    @State private var newCategory = TaskCategoryModel(rawValue: "", color: .blue, iconName: "circle")
+    @State private var editingCategory: TaskCategoryModel?
     @FocusState private var isCategoryNameFocused: Bool
     
     var body: some View {
@@ -49,7 +49,7 @@ struct CategoryEditorView: View {
     
     private func addCategory() {
         viewModel.addCategory(name: newCategory.rawValue, color: newCategory.color, icon: newCategory.iconName)
-        newCategory = TaskCategory(rawValue: "", color: .blue, iconName: "circle")
+        newCategory = TaskCategoryModel(rawValue: "", color: .blue, iconName: "circle")
         isCategoryNameFocused = true
     }
     
@@ -59,14 +59,14 @@ struct CategoryEditorView: View {
 }
 
 struct CategoryFormView: View {
-    @Binding var category: TaskCategory
+    @Binding var category: TaskCategoryModel
     @FocusState.Binding var isFocused: Bool
     
     var body: some View {
         TextField("Название категории", text: Binding(
             get: { category.rawValue },
             set: { newValue in
-                category = TaskCategory(rawValue: newValue, color: category.color, iconName: category.iconName)
+                category = TaskCategoryModel(rawValue: newValue, color: category.color, iconName: category.iconName)
             }
         ))
         .focused($isFocused)
@@ -75,13 +75,13 @@ struct CategoryFormView: View {
         ColorPicker("Цвет категории", selection: Binding(
             get: { category.color },
             set: { newValue in
-                category = TaskCategory(rawValue: category.rawValue, color: newValue, iconName: category.iconName)
+                category = TaskCategoryModel(rawValue: category.rawValue, color: newValue, iconName: category.iconName)
             }
         ))
         IconPicker(selectedIcon: Binding(
             get: { category.iconName },
             set: { newValue in
-                category = TaskCategory(rawValue: category.rawValue, color: category.color, iconName: newValue)
+                category = TaskCategoryModel(rawValue: category.rawValue, color: category.color, iconName: newValue)
             }
         ))
     }
@@ -143,7 +143,7 @@ struct IconPickerView: View {
 }
 
 struct CategoryRowView: View {
-    let category: TaskCategory
+    let category: TaskCategoryModel
     
     var body: some View {
         HStack {
@@ -160,13 +160,13 @@ struct CategoryRowView: View {
 
 struct CategoryEditView: View {
     @ObservedObject var viewModel: ClockViewModel
-    let category: TaskCategory
-    @Binding var isPresented: TaskCategory?
+    let category: TaskCategoryModel
+    @Binding var isPresented: TaskCategoryModel?
     @State private var editedName: String
     @State private var editedColor: Color
     @State private var editedIcon: String
     
-    init(viewModel: ClockViewModel, category: TaskCategory, isPresented: Binding<TaskCategory?>) {
+    init(viewModel: ClockViewModel, category: TaskCategoryModel, isPresented: Binding<TaskCategoryModel?>) {
         self.viewModel = viewModel
         self.category = category
         self._isPresented = isPresented

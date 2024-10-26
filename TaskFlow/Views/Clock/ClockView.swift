@@ -9,9 +9,9 @@ struct ClockView: View {
     @State private var showingStatistics = false
     @State private var currentDate = Date()
     @State private var showingTodayTasks = false
-    @State private var draggedCategory: TaskCategory?
+    @State private var draggedCategory: TaskCategoryModel?  // Изменено здесь
     @State private var showingCategoryEditor = false
-    @State private var selectedCategory: TaskCategory?
+    @State private var selectedCategory: TaskCategoryModel?  // Изменено здесь
     
     @AppStorage("lightModeClockFaceColor") private var lightModeClockFaceColor = Color.white.toHex()
     @AppStorage("darkModeClockFaceColor") private var darkModeClockFaceColor = Color.black.toHex()
@@ -26,25 +26,25 @@ struct ClockView: View {
             VStack {
                 Spacer()
                 ZStack {
-                    // Темное внешн е кльцо
+                    // Темное внешн е кольцо
                     Circle()
                         .stroke(Color.gray.opacity(0.3), lineWidth: 20)
                         .frame(width: UIScreen.main.bounds.width * 0.8, height: UIScreen.main.bounds.width * 0.8)
                     
                     // Маркеры часов
                     ForEach(0..<24) { hour in
-                        ClockMarker(hour: hour)
+                        MainClockMarker(hour: hour)
                     }
                     
                     // Существующий циферблат
-                    ClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: currentClockFaceColor)
+                    MainClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: currentClockFaceColor)
                 }
                 Spacer()
                 CategoryDockBar(viewModel: viewModel, 
-                                showingAddTask: $showingAddTask, 
-                                draggedCategory: $draggedCategory, 
-                                showingCategoryEditor: $showingCategoryEditor,
-                                selectedCategory: $selectedCategory)
+                              showingAddTask: $showingAddTask, 
+                              draggedCategory: $draggedCategory, 
+                              showingCategoryEditor: $showingCategoryEditor,
+                              selectedCategory: $selectedCategory)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -106,7 +106,7 @@ struct ClockView: View {
     
     private var currentClockFaceColor: Color {
         let hexColor = colorScheme == .dark ? darkModeClockFaceColor : lightModeClockFaceColor
-        return Color(hex: hexColor) // Удалим оператор ??
+        return Color(hex: hexColor) ?? .white
     }
     
     private var formattedDate: String {
@@ -127,12 +127,12 @@ struct ClockView: View {
 struct CategoryDockBar: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var showingAddTask: Bool
-    @Binding var draggedCategory: TaskCategory?
+    @Binding var draggedCategory: TaskCategoryModel?  // Изменено здесь
     @Binding var showingCategoryEditor: Bool
     @State private var isEditMode = false
-    @Binding var selectedCategory: TaskCategory?
+    @Binding var selectedCategory: TaskCategoryModel?  // Изменено здесь
     @State private var currentPage = 0
-    @State private var lastNonEditPage = 0 // Добавляем новое состояние для хранения последней неотредактированной страницы
+    @State private var lastNonEditPage = 0
     
     let categoriesPerPage = 4
     let categoryWidth: CGFloat = 80
@@ -190,22 +190,18 @@ struct CategoryDockBar: View {
                 .onEnded { _ in
                     withAnimation {
                         if !isEditMode {
-                            // Сохраняем текущую страницу перед входом в режим редактирования
                             lastNonEditPage = currentPage
                         }
                         isEditMode.toggle()
                         if isEditMode {
-                            // Переходим на страницу с кнопкой "Добавить"
                             currentPage = pageWithAddButton
                         } else {
-                            // Возвращаемся на последнюю неотредактированную страницу
                             currentPage = min(lastNonEditPage, numberOfPages - 1)
                         }
                     }
                 }
         )
         
-        // Индикатор страниц под док-баром
         if numberOfPages > 1 {
             HStack {
                 ForEach(0..<numberOfPages, id: \.self) { index in
@@ -236,7 +232,7 @@ struct CategoryDockBar: View {
         }
     }
     
-    private func categoriesForPage(_ page: Int) -> [TaskCategory] {
+    private func categoriesForPage(_ page: Int) -> [TaskCategoryModel] {  // Изменено здесь
         let startIndex = page * categoriesPerPage
         let endIndex = min(startIndex + categoriesPerPage, viewModel.categories.count)
         return Array(viewModel.categories[startIndex..<endIndex])
@@ -253,7 +249,7 @@ struct CategoryDockBar: View {
 }
 
 struct CategoryButton: View {
-    let category: TaskCategory
+    let category: TaskCategoryModel  // Изменено здесь
     let isSelected: Bool
     
     var body: some View {
@@ -284,40 +280,10 @@ struct CategoryButton: View {
     }
 }
 
-struct ScrollIndicator: View {
-    let totalItems: Int
-    let visibleItems: Int
-    let currentOffset: CGFloat
-    let itemWidth: CGFloat
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<totalItems, id: \.self) { index in
-                Circle()
-                    .fill(Color.gray)
-                    .frame(width: 6, height: 6)
-                    .opacity(isItemVisible(index) ? 1 : 0.3)
-            }
-        }
-        .padding(.vertical, 4)
-    }
-    
-    private func isItemVisible(_ index: Int) -> Bool {
-        let startIndex = Int(-currentOffset / (itemWidth + 10))
-        return index >= startIndex && index < startIndex + visibleItems
-    }
-}
-
-extension CGFloat {
-    func rounded(toNearest: CGFloat) -> CGFloat {
-        return (self / toNearest).rounded() * toNearest
-    }
-}
-
 struct DropViewDelegate: DropDelegate {
-    let item: TaskCategory
-    @Binding var items: [TaskCategory]
-    @Binding var draggedItem: TaskCategory?
+    let item: TaskCategoryModel  // Изменено здесь
+    @Binding var items: [TaskCategoryModel]  // Изменено здесь
+    @Binding var draggedItem: TaskCategoryModel?  // Изменено здесь
 
     func performDrop(info: DropInfo) -> Bool {
         return true
@@ -330,17 +296,32 @@ struct DropViewDelegate: DropDelegate {
             let to = items.firstIndex(of: item)!
             withAnimation(.default) {
                 self.items.move(fromOffsets: IndexSet(integer: from),
-                                toOffset: to > from ? to + 1 : to)
+                              toOffset: to > from ? to + 1 : to)
             }
         }
     }
 }
 
-struct ClockFaceView: View {
+// Переименованные компоненты для основного представления
+struct MainClockMarker: View {
+    let hour: Int
+    
+    var body: some View {
+        VStack {
+            Rectangle()
+                .fill(Color.primary)
+                .frame(width: hour % 3 == 0 ? 3 : 1, height: hour % 3 == 0 ? 15 : 10)
+        }
+        .offset(y: -UIScreen.main.bounds.width * 0.38)
+        .rotationEffect(Angle.degrees(Double(hour) / 24 * 360))
+    }
+}
+
+struct MainClockFaceView: View {
     let currentDate: Date
     let tasks: [Task]
     @ObservedObject var viewModel: ClockViewModel
-    @Binding var draggedCategory: TaskCategory?
+    @Binding var draggedCategory: TaskCategoryModel?
     @State private var selectedTask: Task?
     @State private var showingTaskDetail = false
     @State private var dropLocation: CGPoint?
@@ -352,11 +333,11 @@ struct ClockFaceView: View {
                 .fill(clockFaceColor)
                 .stroke(Color.gray, lineWidth: 2)
             
-            TaskArcsView(tasks: tasks, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
+            MainTaskArcsView(tasks: tasks, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
             
-            ClockMarksView()
+            MainClockMarksView()
             
-            ClockHandView(currentDate: currentDate)
+            MainClockHandView(currentDate: currentDate)
             
             if let location = dropLocation {
                 Circle()
@@ -418,7 +399,7 @@ struct ClockFaceView: View {
     }
 }
 
-struct TaskArcsView: View {
+struct MainTaskArcsView: View {
     let tasks: [Task]
     @ObservedObject var viewModel: ClockViewModel
     @Binding var selectedTask: Task?
@@ -427,13 +408,13 @@ struct TaskArcsView: View {
     var body: some View {
         GeometryReader { geometry in
             ForEach(tasks) { task in
-                ClockTaskArc(task: task, geometry: geometry, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
+                MainClockTaskArc(task: task, geometry: geometry, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
             }
         }
     }
 }
 
-struct ClockTaskArc: View {
+struct MainClockTaskArc: View {
     let task: Task
     let geometry: GeometryProxy
     @ObservedObject var viewModel: ClockViewModel
@@ -483,19 +464,51 @@ struct ClockTaskArc: View {
     }
 }
 
-struct ClockMarksView: View {
+struct MainClockHandView: View {
+    let currentDate: Date
+    
+    var body: some View {
+        GeometryReader { geometry in
+            Path { path in
+                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                let radius = min(geometry.size.width, geometry.size.height) / 2
+                let hourHandLength = radius * 1.22
+                // Уменьшаем длину стрелки
+                let angle = angleForTime(currentDate)
+                let endpoint = CGPoint(
+                    x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
+                    y: center.y + hourHandLength * CGFloat(sin(angle.radians))
+                )
+                
+                path.move(to: center)
+                path.addLine(to: endpoint)
+            }
+            .stroke(Color.blue, lineWidth: 3)
+        }
+    }
+    
+    private func angleForTime(_ time: Date) -> Angle {
+        let calendar = Calendar.current
+        let hour = CGFloat(calendar.component(.hour, from: time))
+        let minute = CGFloat(calendar.component(.minute, from: time))
+        let totalMinutes = hour * 60 + minute
+        return Angle(degrees: Double(totalMinutes) / 2 - 90) // Изменяем формулу для правильного направления
+    }
+}
+
+struct MainClockMarksView: View {
     @Environment(\.colorScheme) var colorScheme
     
     var body: some View {
         GeometryReader { geometry in
             ForEach(0..<24) { hour in
-                ClockMarkView(hour: hour, geometry: geometry, colorScheme: colorScheme)
+                MainClockMarkView(hour: hour, geometry: geometry, colorScheme: colorScheme)
             }
         }
     }
 }
 
-struct ClockMarkView: View {
+struct MainClockMarkView: View {
     let hour: Int
     let geometry: GeometryProxy
     let colorScheme: ColorScheme
@@ -543,39 +556,6 @@ struct ClockMarkView: View {
             .font(.system(size: 14, weight: .bold))
             .foregroundColor(colorScheme == .dark ? .white : .black)
             .position(x: xPosition, y: yPosition)
-    }
-}
-
-struct ClockHandView: View {
-    let currentDate: Date
-    @Environment(\.colorScheme) var colorScheme
-    
-    var body: some View {
-        GeometryReader { geometry in
-            Path { path in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = min(geometry.size.width, geometry.size.height) / 2
-                let hourHandLength = radius * 1.22
-                // Уменьшаем длину стрелки
-                let angle = angleForTime(currentDate)
-                let endpoint = CGPoint(
-                    x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
-                    y: center.y + hourHandLength * CGFloat(sin(angle.radians))
-                )
-                
-                path.move(to: center)
-                path.addLine(to: endpoint)
-            }
-            .stroke(colorScheme == .dark ? Color.red : Color.blue, lineWidth: 3)
-        }
-    }
-    
-    private func angleForTime(_ time: Date) -> Angle {
-        let calendar = Calendar.current
-        let hour = CGFloat(calendar.component(.hour, from: time))
-        let minute = CGFloat(calendar.component(.minute, from: time))
-        let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 2 - 90) // Изменяем формулу для правильного направления
     }
 }
 
@@ -648,7 +628,7 @@ struct ClockView_Previews: PreviewProvider {
     }
 }
 
-struct ClockMarker: View {
+struct iClockMarker: View {
     let hour: Int
     
     var body: some View {

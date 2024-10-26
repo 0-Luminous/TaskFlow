@@ -8,10 +8,10 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
     var duration: TimeInterval
     var color: Color
     var icon: String
-    var category: TaskCategory
-    var isCompleted: Bool // Добавляем это свойство
+    var category: TaskCategoryModel
+    var isCompleted: Bool
 
-    init(id: UUID = UUID(), title: String, startTime: Date, duration: TimeInterval, color: Color, icon: String, category: TaskCategory, isCompleted: Bool = false) {
+    init(id: UUID = UUID(), title: String, startTime: Date, duration: TimeInterval, color: Color, icon: String, category: TaskCategoryModel, isCompleted: Bool = false) {
         self.id = id
         self.title = title
         self.startTime = startTime
@@ -45,58 +45,14 @@ struct Task: Identifiable, Equatable, Hashable, Codable {
         startTime = try container.decode(Date.self, forKey: .startTime)
         duration = try container.decode(TimeInterval.self, forKey: .duration)
         let colorHex = try container.decode(String.self, forKey: .color)
-        color = Color(hex: colorHex)
+        color = Color(hex: colorHex) ?? .gray
         icon = try container.decode(String.self, forKey: .icon)
         let categoryRawValue = try container.decode(String.self, forKey: .category)
-        category = TaskCategory.allCases.first { $0.rawValue == categoryRawValue } ?? .work
+        category = TaskCategoryModel.allCases.first { $0.rawValue == categoryRawValue } ?? .work
         isCompleted = try container.decode(Bool.self, forKey: .isCompleted)
     }
 
     static func == (lhs: Task, rhs: Task) -> Bool {
         lhs.id == rhs.id
-    }
-}
-
-struct TaskCategory: Hashable, Identifiable, Codable {
-    let id: UUID
-    let rawValue: String
-    let color: Color
-    let iconName: String
-    
-    init(id: UUID = UUID(), rawValue: String, color: Color, iconName: String) {
-        self.id = id
-        self.rawValue = rawValue
-        self.color = color
-        self.iconName = iconName
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, rawValue, color, iconName
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(rawValue, forKey: .rawValue)
-        try container.encode(color.toHex(), forKey: .color)
-        try container.encode(iconName, forKey: .iconName)
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        rawValue = try container.decode(String.self, forKey: .rawValue)
-        let colorHex = try container.decode(String.self, forKey: .color)
-        color = Color(hex: colorHex)
-        iconName = try container.decode(String.self, forKey: .iconName)
-    }
-    
-    static let food = TaskCategory(rawValue: "Еда", color: .green, iconName: "fork.knife")
-    static let sport = TaskCategory(rawValue: "Спорт", color: .red, iconName: "figure.walk")
-    static let sleep = TaskCategory(rawValue: "Сон", color: .blue, iconName: "bed.double")
-    static let work = TaskCategory(rawValue: "Работа", color: .orange, iconName: "laptopcomputer")
-    
-    static var allCases: [TaskCategory] {
-        [.food, .sport, .sleep, .work]
     }
 }

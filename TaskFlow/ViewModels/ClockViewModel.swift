@@ -4,8 +4,8 @@ import Foundation
 
 class ClockViewModel: ObservableObject {
     @Published var tasks: [Task] = []
-    @Published var categories: [TaskCategory] = TaskCategory.allCases
-    @Published var selectedCategory: TaskCategory = .work
+    @Published var categories: [TaskCategoryModel] = TaskCategoryModel.allCases
+    @Published var selectedCategory: TaskCategoryModel = .work
     private var persistence = PersistenceController.shared
     private var cancellables = Set<AnyCancellable>()
     
@@ -53,7 +53,7 @@ class ClockViewModel: ObservableObject {
     }
     
     func addCategory(name: String, color: Color, icon: String) {
-        let newCategory = TaskCategory(rawValue: name, color: color, iconName: icon)
+        let newCategory = TaskCategoryModel(rawValue: name, color: color, iconName: icon)
         categories.append(newCategory)
     }
     
@@ -89,7 +89,7 @@ class ClockViewModel: ObservableObject {
     private func loadCategories() {
         if let savedCategories = UserDefaults.standard.data(forKey: "savedCategories") {
             let decoder = JSONDecoder()
-            if let loadedCategories = try? decoder.decode([TaskCategory].self, from: savedCategories) {
+            if let loadedCategories = try? decoder.decode([TaskCategoryModel].self, from: savedCategories) {
                 categories = loadedCategories
             }
         }
@@ -102,15 +102,15 @@ class ClockViewModel: ObservableObject {
         }
     }
 
-    func tasksByCategory() -> [TaskCategory: [Task]] {
+    func tasksByCategory() -> [TaskCategoryModel: [Task]] {
         Dictionary(grouping: tasks, by: { $0.category })
     }
 
-    func updateCategory(_ category: TaskCategory, newName: String, newColor: Color, newIcon: String) {
+    func updateCategory(_ category: TaskCategoryModel, newName: String, newColor: Color, newIcon: String) {
         if let index = categories.firstIndex(where: { $0.id == category.id }) {
-            categories[index] = TaskCategory(id: category.id, rawValue: newName, color: newColor, iconName: newIcon)
+            categories[index] = TaskCategoryModel(id: category.id, rawValue: newName, color: newColor, iconName: newIcon)
             
-            // Обновляем задачи, связанные с этой категрией
+            // Обновляем задачи, связанные с этой категорией
             for i in 0..<tasks.count {
                 if tasks[i].category.id == category.id {
                     tasks[i].category = categories[index]

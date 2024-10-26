@@ -20,9 +20,9 @@ struct PersistenceController {
             newTask.title = "Пример задачи"
             newTask.startTime = Date()
             newTask.duration = 3600
-            newTask.color = TaskCategory.work.color.toHex()
+            newTask.color = TaskCategoryModel.work.color.toHex()
             newTask.icon = "circle"
-            newTask.category = TaskCategory.work.rawValue
+            newTask.category = TaskCategoryModel.work.rawValue
         }
         do {
             try viewContext.save()
@@ -93,7 +93,7 @@ struct PersistenceController {
                           let title = entity.title,
                           let colorHex = entity.color,
                           let categoryRaw = entity.category,
-                          let category = TaskCategory.allCases.first(where: { $0.rawValue == categoryRaw }) else {
+                          let category = TaskCategoryModel.allCases.first(where: { $0.rawValue == categoryRaw }) else {
                         return nil
                     }
                     return Task(
@@ -101,7 +101,7 @@ struct PersistenceController {
                         title: title,
                         startTime: entity.startTime ?? Date(),
                         duration: entity.duration,
-                        color: Color(hex: colorHex),
+                        color: Color(hex: colorHex) ?? .gray,  // Добавляем значение по умолчанию
                         icon: entity.icon ?? "circle",
                         category: category
                     )

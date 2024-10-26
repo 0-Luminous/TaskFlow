@@ -24,7 +24,7 @@ struct TaskEditorView: View {
                 duration: 3600,
                 color: .blue,
                 icon: "circle",
-                category: .work,
+                category: TaskCategoryModel.work,
                 isCompleted: false
             )
             self._editedTask = State(initialValue: newTask)
@@ -49,7 +49,7 @@ struct TaskEditorView: View {
                 
                 Section(header: Text("Категория")) {
                     Picker("Категория", selection: $editedTask.category) {
-                        ForEach(TaskCategory.allCases, id: \.self) { category in
+                        ForEach(TaskCategoryModel.allCases, id: \.self) { category in
                             Label(category.rawValue, systemImage: category.iconName)
                                 .foregroundColor(category.color)
                                 .tag(category)
@@ -126,7 +126,7 @@ struct TaskEditorView_Previews: PreviewProvider {
                 duration: 3600,
                 color: .blue,
                 icon: "circle",
-                category: .work,
+                category: TaskCategoryModel.work,
                 isCompleted: false
             ),
             isPresented: .constant(true)
