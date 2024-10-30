@@ -1,7 +1,0 @@
-feat: update clock UI and task interaction
-
-- Replace TaskDetailView with TaskEditorView for task editing
-- Fix 24-hour clock hand rotation
-- Update clock markers and task arcs display
-- Improve task interaction on clock face
-- Clean up duplicate code in clock components 

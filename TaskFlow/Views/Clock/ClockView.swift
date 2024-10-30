@@ -464,21 +464,22 @@ struct MainClockTaskArc: View {
 
 struct MainClockHandView: View {
     let currentDate: Date
+    @State private var syncedDate: Date = Date()
     
     private var calendar: Calendar {
         Calendar.current
     }
     
     private var hour: Int {
-        calendar.component(.hour, from: currentDate)
+        calendar.component(.hour, from: syncedDate)
     }
     
     private var minute: Int {
-        calendar.component(.minute, from: currentDate)
+        calendar.component(.minute, from: syncedDate)
     }
     
     private var second: Int {
-        calendar.component(.second, from: currentDate)
+        calendar.component(.second, from: syncedDate)
     }
     
     // Обновляем расчет угла для 24-часового формата
@@ -499,12 +500,40 @@ struct MainClockHandView: View {
                     x: center.x + hourHandLength * CGFloat(cos(angle)),
                     y: center.y + hourHandLength * CGFloat(sin(angle))
                 )
-                print("\(currentDate)")
                 path.move(to: center)
                 path.addLine(to: endpoint)
             }
             .stroke(Color.blue, lineWidth: 3)
+            .onAppear {
+                syncTime()
+            }
         }
+    }
+    
+    private func syncTime() {
+        // Создаем URLSession для синхронизации времени с NTP сервером
+        let config = URLSessionConfiguration.default
+        let session = URLSession(configuration: config)
+        
+        // Используем time.apple.com как NTP сервер
+        guard let url = URL(string: "https://time.apple.com/") else { return }
+        
+        let task = session.dataTask(with: url) { _, response, _ in
+            if let httpResponse = response as? HTTPURLResponse,
+               let serverDate = httpResponse.value(forHTTPHeaderField: "Date") {
+                let formatter = DateFormatter()
+                formatter.locale = Locale(identifier: "en_US_POSIX")
+                formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+                if let utcDate = formatter.date(from: serverDate) {
+                    // Конвертируем UTC время в локальное время пользователя
+                    let localDate = utcDate.addingTimeInterval(TimeZone.current.secondsFromGMT())
+                    DispatchQueue.main.async {
+                        self.syncedDate = localDate
+                    }
+                }
+            }
+        }
+        task.resume()
     }
 }
 
