@@ -470,70 +470,68 @@ struct MainClockHandView: View {
         Calendar.current
     }
     
-    private var hour: Int {
-        calendar.component(.hour, from: syncedDate)
+    private var timeComponents: (hour: Int, minute: Int) {
+        (
+            calendar.component(.hour, from: syncedDate),
+            calendar.component(.minute, from: syncedDate)
+        )
     }
     
-    private var minute: Int {
-        calendar.component(.minute, from: syncedDate)
-    }
-    
-    private var second: Int {
-        calendar.component(.second, from: syncedDate)
-    }
-    
-    // Обновляем расчет угла для 24-часового формата
     private var hourAngle: Double {
-        let baseAngle = Double(hour) * 15 // 360° / 24 = 15° на час
-        let minuteContribution = Double(minute) * 0.25 // 15° / 60 = 0.25° на минуту
-        return (baseAngle + minuteContribution) * .pi / 180 // конвертируем градусы в радианы
+        let (hour, minute) = timeComponents
+        // 360° / 24 = 15° на час, 15° / 60 = 0.25° на минуту
+        let angle = Double(hour) * 15 + Double(minute) * 0.25
+        return angle * .pi / 180 // конвертируем в радианы
     }
     
     var body: some View {
         GeometryReader { geometry in
-            Path { path in
-                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
-                let radius = min(geometry.size.width, geometry.size.height) / 2
-                let hourHandLength = radius * 1.22
-                let angle = hourAngle
-                let endpoint = CGPoint(
-                    x: center.x + hourHandLength * CGFloat(cos(angle)),
-                    y: center.y + hourHandLength * CGFloat(sin(angle))
-                )
-                path.move(to: center)
-                path.addLine(to: endpoint)
-            }
+            ClockHand(
+                center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
+                radius: min(geometry.size.width, geometry.size.height)/2,
+                angle: hourAngle
+            )
             .stroke(Color.blue, lineWidth: 3)
-            .onAppear {
-                syncTime()
-            }
+            .onAppear(perform: syncTime)
         }
     }
     
     private func syncTime() {
-        // Создаем URLSession для синхронизации времени с NTP сервером
-        let config = URLSessionConfiguration.default
-        let session = URLSession(configuration: config)
-        
-        // Используем time.apple.com как NTP сервер
         guard let url = URL(string: "https://time.apple.com/") else { return }
         
-        let task = session.dataTask(with: url) { _, response, _ in
-            if let httpResponse = response as? HTTPURLResponse,
-               let serverDate = httpResponse.value(forHTTPHeaderField: "Date") {
-                let formatter = DateFormatter()
-                formatter.locale = Locale(identifier: "en_US_POSIX")
-                formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-                if let utcDate = formatter.date(from: serverDate) {
-                    // Конвертируем UTC время в локальное время пользователя
-                    let localDate = utcDate.addingTimeInterval(TimeZone.current.secondsFromGMT())
-                    DispatchQueue.main.async {
-                        self.syncedDate = localDate
-                    }
+        URLSession.shared.dataTask(with: url) { _, response, _ in
+            guard let httpResponse = response as? HTTPURLResponse,
+                  let serverDate = httpResponse.value(forHTTPHeaderField: "Date") else { return }
+            
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+            
+            if let utcDate = formatter.date(from: serverDate) {
+                let localDate = utcDate.addingTimeInterval(TimeInterval(TimeZone.current.secondsFromGMT()))
+                DispatchQueue.main.async {
+                    self.syncedDate = localDate
                 }
             }
-        }
-        task.resume()
+        }.resume()
+    }
+}
+
+private struct ClockHand: Shape {
+    let center: CGPoint
+    let radius: CGFloat
+    let angle: Double
+    
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let handLength = radius * 1.22
+        let endpoint = CGPoint(
+            x: center.x + handLength * CGFloat(cos(angle)),
+            y: center.y + handLength * CGFloat(sin(angle))
+        )
+        path.move(to: center)
+        path.addLine(to: endpoint)
+        return path
     }
 }
 
