@@ -327,6 +327,30 @@ struct MainClockFaceView: View {
     @State private var dropLocation: CGPoint?
     let clockFaceColor: Color
     
+    private func timeForLocation(_ location: CGPoint) -> Date {
+        let center = CGPoint(x: UIScreen.main.bounds.width * 0.35, y: UIScreen.main.bounds.width * 0.35)
+        let vector = CGVector(dx: location.x - center.x, dy: location.y - center.y)
+        
+        // Рассчитываем угол в радианах
+        var angle = atan2(vector.dy, vector.dx)
+        
+        // Конвертируем угол в градусы и корректируем для нашей системы координат
+        // где 0 часов - влево (90 градусов)
+        var degrees = angle * 180 / .pi
+        degrees = (degrees - 90 + 360).truncatingRemainder(dividingBy: 360)
+        
+        // Конвертируем градусы в часы (360° / 24 = 15° на час)
+        let hours = degrees / 15
+        let hourComponent = Int(hours)
+        let minuteComponent = Int((hours - Double(hourComponent)) * 60)
+        
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: currentDate)
+        components.hour = hourComponent
+        components.minute = minuteComponent
+        
+        return Calendar.current.date(from: components) ?? currentDate
+    }
+    
     var body: some View {
         ZStack {
             Circle()
@@ -368,6 +392,7 @@ struct MainClockFaceView: View {
                 category: category,
                 isCompleted: false
             )
+            
             viewModel.addTask(newTask)
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -381,20 +406,6 @@ struct MainClockFaceView: View {
                 TaskEditorView(viewModel: viewModel, task: task, isPresented: $showingTaskDetail)
             }
         }
-    }
-    
-    private func timeForLocation(_ location: CGPoint) -> Date {
-        let center = CGPoint(x: UIScreen.main.bounds.width * 0.35, y: UIScreen.main.bounds.width * 0.35)
-        let vector = CGVector(dx: location.x - center.x, dy: location.y - center.y)
-        let angle = atan2(vector.dy, vector.dx)
-        let normalizedAngle = (angle + .pi / 2).truncatingRemainder(dividingBy: .pi * 2)
-        let hours = normalizedAngle / (.pi / 12)
-        
-        var components = Calendar.current.dateComponents([.year, .month, .day], from: currentDate)
-        components.hour = Int(hours)
-        components.minute = Int((hours.truncatingRemainder(dividingBy: 1)) * 60)
-        
-        return Calendar.current.date(from: components) ?? currentDate
     }
 }
 
@@ -420,20 +431,63 @@ struct MainClockTaskArc: View {
     @Binding var selectedTask: Task?
     @Binding var showingTaskDetail: Bool
     
+    private func calculateAngles() -> (start: Angle, end: Angle) {
+        let calendar = Calendar.current
+        
+        // Получаем компоненты времени
+        let startHour = CGFloat(calendar.component(.hour, from: task.startTime))
+        let startMinute = CGFloat(calendar.component(.minute, from: task.startTime))
+        let endTime = task.startTime.addingTimeInterval(task.duration)
+        var endHour = CGFloat(calendar.component(.hour, from: endTime))
+        let endMinute = CGFloat(calendar.component(.minute, from: endTime))
+        
+        // Рассчитываем углы в минутах (24 часа = 1440 минут)
+        var startMinutes = startHour * 60 + startMinute
+        var endMinutes = endHour * 60 + endMinute
+        
+        // Если конечное время меньше начального, добавляем 24 часа
+        if endMinutes < startMinutes {
+            endMinutes += 24 * 60
+        }
+        
+        // Конвертируем минуты в углы
+        // Начинаем с 90 градусов (0 часов - влево)
+        let startAngle = Angle(degrees: 90 + Double(startMinutes) / 4)
+        let endAngle = Angle(degrees: 90 + Double(endMinutes) / 4)
+        
+        return (startAngle, endAngle)
+    }
+    
+    private func calculateMidAngle(start: Angle, end: Angle) -> Angle {
+        var midDegrees = (start.degrees + end.degrees) / 2
+        
+        // Корректируем середину для задач, переходящих через полночь
+        if end.degrees < start.degrees {
+            midDegrees = (start.degrees + (end.degrees + 360)) / 2
+            if midDegrees >= 360 {
+                midDegrees -= 360
+            }
+        }
+        
+        return Angle(degrees: midDegrees)
+    }
+    
     var body: some View {
         let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         let radius = min(geometry.size.width, geometry.size.height) / 2
-        let startAngle = angleForTime(task.startTime)
-        let endTime = task.startTime.addingTimeInterval(task.duration)
-        let endAngle = angleForTime(endTime)
+        let (startAngle, endAngle) = calculateAngles()
         
         ZStack {
             Path { path in
-                path.addArc(center: center, radius: radius + 10, startAngle: startAngle, endAngle: endAngle, clockwise: false)
+                path.addArc(center: center, 
+                           radius: radius + 10, 
+                           startAngle: startAngle, 
+                           endAngle: endAngle, 
+                           clockwise: false)
             }
             .stroke(task.category.color, lineWidth: 20)
             
-            let midAngle = Angle(degrees: (startAngle.degrees + endAngle.degrees) / 2)
+            let midAngle = calculateMidAngle(start: startAngle, end: endAngle)
             Image(systemName: task.category.iconName)
                 .font(.system(size: 12))
                 .foregroundColor(.white)
@@ -452,19 +506,19 @@ struct MainClockTaskArc: View {
             showingTaskDetail = true
         }
     }
-    
-    private func angleForTime(_ time: Date) -> Angle {
-        let calendar = Calendar.current
-        let hour = CGFloat(calendar.component(.hour, from: time))
-        let minute = CGFloat(calendar.component(.minute, from: time))
-        let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
-    }
 }
 
 struct MainClockHandView: View {
     let currentDate: Date
-    @State private var syncedDate: Date = Date()
+    @AppStorage("useManualTime") private var useManualTime = false
+    
+    private var displayDate: Date {
+        if useManualTime,
+           let manualTime = UserDefaults.standard.object(forKey: "manualTime") as? Date {
+            return manualTime
+        }
+        return currentDate
+    }
     
     private var calendar: Calendar {
         Calendar.current
@@ -472,66 +526,34 @@ struct MainClockHandView: View {
     
     private var timeComponents: (hour: Int, minute: Int) {
         (
-            calendar.component(.hour, from: syncedDate),
-            calendar.component(.minute, from: syncedDate)
+            calendar.component(.hour, from: displayDate),
+            calendar.component(.minute, from: displayDate)
         )
     }
     
     private var hourAngle: Double {
         let (hour, minute) = timeComponents
-        // 360° / 24 = 15° на час, 15° / 60 = 0.25° на минуту
-        let angle = Double(hour) * 15 + Double(minute) * 0.25
-        return angle * .pi / 180 // конвертируем в радианы
+        let angle = 90 + (Double(hour) * 15 + Double(minute) * 0.25)
+        return angle * .pi / 180
     }
     
     var body: some View {
         GeometryReader { geometry in
-            ClockHand(
-                center: CGPoint(x: geometry.size.width/2, y: geometry.size.height/2),
-                radius: min(geometry.size.width, geometry.size.height)/2,
-                angle: hourAngle
-            )
-            .stroke(Color.blue, lineWidth: 3)
-            .onAppear(perform: syncTime)
-        }
-    }
-    
-    private func syncTime() {
-        guard let url = URL(string: "https://time.apple.com/") else { return }
-        
-        URLSession.shared.dataTask(with: url) { _, response, _ in
-            guard let httpResponse = response as? HTTPURLResponse,
-                  let serverDate = httpResponse.value(forHTTPHeaderField: "Date") else { return }
-            
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-            
-            if let utcDate = formatter.date(from: serverDate) {
-                let localDate = utcDate.addingTimeInterval(TimeInterval(TimeZone.current.secondsFromGMT()))
-                DispatchQueue.main.async {
-                    self.syncedDate = localDate
-                }
+            Path { path in
+                let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
+                let radius = min(geometry.size.width, geometry.size.height) / 2
+                let hourHandLength = radius * 1.22
+                let angle = hourAngle
+                let endpoint = CGPoint(
+                    x: center.x + hourHandLength * CGFloat(cos(angle)),
+                    y: center.y + hourHandLength * CGFloat(sin(angle))
+                )
+                
+                path.move(to: center)
+                path.addLine(to: endpoint)
             }
-        }.resume()
-    }
-}
-
-private struct ClockHand: Shape {
-    let center: CGPoint
-    let radius: CGFloat
-    let angle: Double
-    
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let handLength = radius * 1.22
-        let endpoint = CGPoint(
-            x: center.x + handLength * CGFloat(cos(angle)),
-            y: center.y + handLength * CGFloat(sin(angle))
-        )
-        path.move(to: center)
-        path.addLine(to: endpoint)
-        return path
+            .stroke(Color.blue, lineWidth: 3)
+        }
     }
 }
 

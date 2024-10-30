@@ -12,6 +12,9 @@ struct SettingsView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("sortOption") private var sortOption = SortOption.startTime.rawValue
+    @AppStorage("useManualTime") private var useManualTime = false
+    @State private var selectedTime = Date()
+    @State private var showingTimeSavedAlert = false
     
     enum SortOption: String, CaseIterable, Identifiable {
         case startTime = "Началу"
@@ -26,6 +29,28 @@ struct SettingsView: View {
             // Вкладка с основными настройками
             NavigationView {
                 List {
+                    Section(header: Text("Время")) {
+                        Toggle("Установить время вручную", isOn: $useManualTime)
+                        
+                        if useManualTime {
+                            DatePicker("Выбрать время",
+                                     selection: $selectedTime,
+                                     displayedComponents: [.hourAndMinute])
+                                .datePickerStyle(.wheel)
+                            
+                            Button(action: {
+                                saveManualTime()
+                                showingTimeSavedAlert = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "clock.badge.checkmark")
+                                    Text("Сохранить время")
+                                }
+                            }
+                            .foregroundColor(.blue)
+                        }
+                    }
+                    
                     Section(header: Text("Уведомления")) {
                         Toggle("Включить уведомления", isOn: $notificationsEnabled)
                     }
@@ -55,6 +80,11 @@ struct SettingsView: View {
                         }
                     }
                 }
+                .alert("Время сохранено", isPresented: $showingTimeSavedAlert) {
+                    Button("OK", role: .cancel) { }
+                } message: {
+                    Text("Выбранное время успешно установлено")
+                }
             }
             .tabItem {
                 Label("Основные", systemImage: "gear")
@@ -66,12 +96,25 @@ struct SettingsView: View {
                     Label("Цвета", systemImage: "paintbrush")
                 }
         }
+        .onAppear {
+            if let savedTime = UserDefaults.standard.object(forKey: "manualTime") as? Date {
+                selectedTime = savedTime
+            }
+        }
+    }
+    
+    private func saveManualTime() {
+        UserDefaults.standard.set(selectedTime, forKey: "manualTime")
+        UserDefaults.standard.synchronize()
     }
     
     private func resetSettings() {
         isDarkMode = false
         notificationsEnabled = true
         sortOption = SortOption.startTime.rawValue
+        useManualTime = false
+        UserDefaults.standard.removeObject(forKey: "manualTime")
+        UserDefaults.standard.synchronize()
     }
 }
 
@@ -131,7 +174,7 @@ struct PreviewClockFaceView: View {
             Circle()
                 .stroke(Color.gray.opacity(0.3), lineWidth: 20)
             
-            // Используем существующие компоненты из ClockView
+            // Используем существующие компоненты и�� ClockView
             MainClockMarksView()
                 .scaleEffect(0.8)
             
