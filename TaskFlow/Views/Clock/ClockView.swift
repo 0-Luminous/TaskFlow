@@ -473,7 +473,6 @@ struct MainClockHandView: View {
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 let radius = min(geometry.size.width, geometry.size.height) / 2
                 let hourHandLength = radius * 1.22
-                // Уменьшаем длину стрелки
                 let angle = angleForTime(currentDate)
                 let endpoint = CGPoint(
                     x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
@@ -492,9 +491,12 @@ struct MainClockHandView: View {
         let hour = CGFloat(calendar.component(.hour, from: time))
         let minute = CGFloat(calendar.component(.minute, from: time))
         let totalMinutes = hour * 60 + minute
-        return Angle(degrees: Double(totalMinutes) / 2 - 90) // Изменяем формулу для правильного направления
+
+        // Вычисляем угол для 24-часового формата
+        return Angle(degrees: Double(totalMinutes) / 4 - 90)
     }
 }
+
 
 struct MainClockMarksView: View {
     @Environment(\.colorScheme) var colorScheme
