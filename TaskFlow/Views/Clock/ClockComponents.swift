@@ -75,7 +75,7 @@ struct ClockFaceView: View {
         }
         .sheet(isPresented: $showingTaskDetail) {
             if let task = selectedTask {
-                TaskDetailView(task: task, viewModel: viewModel, isPresented: $showingTaskDetail)
+                TaskEditorView(viewModel: viewModel, task: task, isPresented: $showingTaskDetail)
             }
         }
     }

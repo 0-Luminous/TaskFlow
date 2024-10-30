@@ -358,12 +358,11 @@ struct MainClockFaceView: View {
             
             let time = timeForLocation(dropPoint)
             
-            // Создаем новую задачу с учетом структуры Task
             let newTask = Task(
                 id: UUID(),
                 title: "Новая задача",
                 startTime: time,
-                duration: 3600, // 1 час по умолчанию
+                duration: 3600,
                 color: category.color,
                 icon: category.iconName,
                 category: category,
@@ -379,7 +378,7 @@ struct MainClockFaceView: View {
         }
         .sheet(isPresented: $showingTaskDetail) {
             if let task = selectedTask {
-                TaskDetailView(task: task, viewModel: viewModel, isPresented: $showingTaskDetail)
+                TaskEditorView(viewModel: viewModel, task: task, isPresented: $showingTaskDetail)
             }
         }
     }
@@ -434,7 +433,6 @@ struct MainClockTaskArc: View {
             }
             .stroke(task.category.color, lineWidth: 20)
             
-            // Добавляем иконку категории в середине дуги
             let midAngle = Angle(degrees: (startAngle.degrees + endAngle.degrees) / 2)
             Image(systemName: task.category.iconName)
                 .font(.system(size: 12))
@@ -467,16 +465,39 @@ struct MainClockTaskArc: View {
 struct MainClockHandView: View {
     let currentDate: Date
     
+    private var calendar: Calendar {
+        Calendar.current
+    }
+    
+    private var hour: Int {
+        calendar.component(.hour, from: currentDate)
+    }
+    
+    private var minute: Int {
+        calendar.component(.minute, from: currentDate)
+    }
+    
+    private var second: Int {
+        calendar.component(.second, from: currentDate)
+    }
+    
+    // Обновляем расчет угла для 24-часового формата
+    private var hourAngle: Double {
+        let baseAngle = Double(hour) * 15 // 360° / 24 = 15° на час
+        let minuteContribution = Double(minute) * 0.25 // 15° / 60 = 0.25° на минуту
+        return (baseAngle + minuteContribution) * .pi / 180 // конвертируем градусы в радианы
+    }
+    
     var body: some View {
         GeometryReader { geometry in
             Path { path in
                 let center = CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
                 let radius = min(geometry.size.width, geometry.size.height) / 2
                 let hourHandLength = radius * 1.22
-                let angle = angleForTime(currentDate)
+                let angle = hourAngle
                 let endpoint = CGPoint(
-                    x: center.x + hourHandLength * CGFloat(cos(angle.radians)),
-                    y: center.y + hourHandLength * CGFloat(sin(angle.radians))
+                    x: center.x + hourHandLength * CGFloat(cos(angle)),
+                    y: center.y + hourHandLength * CGFloat(sin(angle))
                 )
                 
                 path.move(to: center)
@@ -485,18 +506,7 @@ struct MainClockHandView: View {
             .stroke(Color.blue, lineWidth: 3)
         }
     }
-    
-    private func angleForTime(_ time: Date) -> Angle {
-        let calendar = Calendar.current
-        let hour = CGFloat(calendar.component(.hour, from: time))
-        let minute = CGFloat(calendar.component(.minute, from: time))
-        let totalMinutes = hour * 60 + minute
-
-        // Вычисляем угол для 24-часового формата
-        return Angle(degrees: Double(totalMinutes) / 4 - 90)
-    }
 }
-
 
 struct MainClockMarksView: View {
     @Environment(\.colorScheme) var colorScheme
@@ -575,52 +585,6 @@ struct ClockCenterView: View {
         .padding()
         .background(Color.black.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 10))
-    }
-}
-
-struct TaskDetailView: View {
-    let task: Task
-    @ObservedObject var viewModel: ClockViewModel
-    @Binding var isPresented: Bool
-    
-    var body: some View {
-        NavigationView {
-            Form {
-                Section(header: Text("Детали задачи")) {
-                    Text("Название: \(task.title)")
-                    Text("Категория: \(task.category.rawValue)")
-                    Text("Начало: \(task.startTime, formatter: dateFormatter)")
-                    Text("Продолжительность: \(formattedDuration)")
-                }
-                
-                Section {
-                    Button("Редактировать") {
-                        // Здесь мы можем открыть TaskEditorView для ректирования
-                    }
-                    Button("Удалить", role: .destructive) {
-                        viewModel.removeTask(task)
-                        isPresented = false
-                    }
-                }
-            }
-            .navigationTitle("Инфо")
-            .navigationBarItems(trailing: Button("Закрыть") {
-                isPresented = false
-            })
-        }
-    }
-    
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }
-    
-    private var formattedDuration: String {
-        let hours = Int(task.duration) / 3600
-        let minutes = (Int(task.duration) % 3600) / 60
-        return "\(hours) ч \(minutes) мин"
     }
 }
 

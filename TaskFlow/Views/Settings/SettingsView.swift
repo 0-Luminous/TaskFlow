@@ -89,24 +89,11 @@ struct ColorSettingsView: View {
             Section(header: Text("Предпросмотр")) {
                 HStack {
                     Spacer()
-                    ZStack {
-                        Circle()
-                            .fill(isDarkMode ? tempDarkModeClockFaceColor : tempLightModeClockFaceColor)
-                            .frame(width: 200, height: 200)
-                        
-                        // Маркеры часов
-                        ForEach(0..<24) { hour in
-                            MainClockMarker(hour: hour)
-                                .frame(width: 200, height: 200)
-                        }
-                        
-                        // Стрелка часов
-                        MainClockHandView(currentDate: Date())
-                            .frame(width: 200, height: 200)
-                    }
+                    PreviewClockFaceView(backgroundColor: isDarkMode ? tempDarkModeClockFaceColor : tempLightModeClockFaceColor)
+                        .frame(width: UIScreen.main.bounds.width * 0.55, height: UIScreen.main.bounds.width * 0.55)
+                        .padding(.vertical, 10)
                     Spacer()
                 }
-                .padding(.vertical)
             }
             
             Section(header: Text("Внешний вид")) {
@@ -125,6 +112,36 @@ struct ColorSettingsView: View {
         .onAppear {
             tempLightModeClockFaceColor = Color(hex: lightModeClockFaceColor) ?? .white
             tempDarkModeClockFaceColor = Color(hex: darkModeClockFaceColor) ?? .black
+        }
+    }
+}
+
+struct PreviewClockFaceView: View {
+    let backgroundColor: Color
+    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var currentDate = Date()
+    
+    var body: some View {
+        ZStack {
+            // Фон циферблата
+            Circle()
+                .fill(backgroundColor)
+            
+            // Темное внешнее кольцо
+            Circle()
+                .stroke(Color.gray.opacity(0.3), lineWidth: 20)
+            
+            // Используем существующие компоненты из ClockView
+            MainClockMarksView()
+                .scaleEffect(0.8)
+            
+            MainClockHandView(currentDate: currentDate)
+                .scaleEffect(0.8)
+        }
+        .frame(width: UIScreen.main.bounds.width * 0.5, height: UIScreen.main.bounds.width * 0.5)
+        .aspectRatio(1, contentMode: .fit)
+        .onReceive(timer) { _ in
+            currentDate = Date()
         }
     }
 }
