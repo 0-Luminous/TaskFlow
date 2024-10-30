@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct TaskFlowView: View {
-    @ObservedObject var viewModel: ClockViewModel
+struct CalendarView: View {
+    @EnvironmentObject var viewModel: ClockViewModel
     @State private var selectedTask: Task?
     @State private var isEditingTask = false
     @State private var searchText = ""
@@ -35,7 +35,7 @@ struct TaskFlowView: View {
                     if Calendar.current.isDate(date, inSameDayAs: currentDate) {
                         Section(header: Text(dateFormatter.string(from: date))) {
                             ForEach(filteredTasks[date]?.sorted(by: { $0.startTime < $1.startTime }) ?? []) { task in
-                                TaskRow(task: task, isSelected: selectedTask == task)
+                                CalendarTaskRow(task: task, isSelected: selectedTask == task)
                                     .onTapGesture {
                                         selectedTask = task
                                         isEditingTask = true
@@ -78,8 +78,49 @@ struct TaskFlowView: View {
     }
 }
 
-#Preview {
-    NavigationView {
-        TaskFlowView(viewModel: ClockViewModel())
+struct CalendarTaskRow: View {
+    let task: Task
+    let isSelected: Bool
+    
+    private let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+    
+    var body: some View {
+        HStack {
+            Circle()
+                .fill(task.category.color)
+                .frame(width: 12, height: 12)
+            
+            VStack(alignment: .leading) {
+                Text(task.title)
+                    .font(.headline)
+                
+                HStack {
+                    Text(timeFormatter.string(from: task.startTime))
+                    Text("-")
+                    Text(timeFormatter.string(from: task.startTime.addingTimeInterval(task.duration)))
+                    Text("•")
+                    Text(task.category.rawValue)
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            Image(systemName: task.category.iconName)
+                .foregroundColor(task.category.color)
+        }
+        .padding(.vertical, 4)
+        .background(isSelected ? Color.blue.opacity(0.1) : Color.clear)
+        .cornerRadius(8)
     }
+}
+
+#Preview {
+    CalendarView()
+        .environmentObject(ClockViewModel())
 }

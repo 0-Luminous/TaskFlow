@@ -499,7 +499,7 @@ struct MainClockHandView: View {
                     x: center.x + hourHandLength * CGFloat(cos(angle)),
                     y: center.y + hourHandLength * CGFloat(sin(angle))
                 )
-                
+                print("\(currentDate)")
                 path.move(to: center)
                 path.addLine(to: endpoint)
             }
