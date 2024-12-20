@@ -5,7 +5,7 @@ struct ClockView: View {
     @StateObject private var viewModel = ClockViewModel()
     @State private var showingAddTask = false
     @State private var showingSettings = false
-    @State private var showingTaskFlow = false
+    @State private var showingCalendar = false
     @State private var showingStatistics = false
     @State private var currentDate = Date()
     @State private var showingTodayTasks = false
@@ -69,7 +69,7 @@ struct ClockView: View {
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     HStack {
-                        Button(action: { showingTaskFlow = true }) {
+                        Button(action: { showingCalendar = true }) {
                             Image(systemName: "calendar")
                         }
                         Button(action: { showingTodayTasks = true }) {
@@ -84,8 +84,8 @@ struct ClockView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
-            .sheet(isPresented: $showingTaskFlow) {
-                TaskFlowView(viewModel: viewModel)
+            .sheet(isPresented: $showingCalendar) {
+                CalendarView(viewModel: viewModel)
             }
             .sheet(isPresented: $showingStatistics) {
                 StatisticsView(viewModel: viewModel)
