@@ -4,6 +4,7 @@ import Foundation
 
 class ClockViewModel: ObservableObject {
     @Published var tasks: [Task] = []
+    @Published var selectedDate: Date = Date()
     @Published var categories: [TaskCategoryModel] = TaskCategoryModel.allCases
     @Published var selectedCategory: TaskCategoryModel = .work
     private var persistence = PersistenceController.shared
@@ -31,6 +32,9 @@ class ClockViewModel: ObservableObject {
                 self?.saveCategories()
             }
             .store(in: &cancellables)
+    }
+    func setSelectedDate(_ date: Date) {
+        selectedDate = Calendar.current.startOfDay(for: date)
     }
 
     func addTask(_ task: Task) {

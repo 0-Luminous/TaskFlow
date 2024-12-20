@@ -7,7 +7,7 @@ struct TodayTasksView: View {
     var body: some View {
         NavigationView {
             List {
-                ForEach(todayTasks) { task in
+                ForEach(selectedDateTasks) { task in
                     TaskRow(task: task, isSelected: task.isCompleted)
                         .onTapGesture {
                             toggleTaskCompletion(task)
@@ -15,23 +15,43 @@ struct TodayTasksView: View {
                 }
                 .onDelete(perform: deleteTasks)
             }
-            .navigationTitle("Поток")
+            .navigationTitle(navigationTitle)
             .sheet(isPresented: $showingAddTask) {
-                TaskEditorView(viewModel: viewModel, task: Task(id: UUID(), title: "", startTime: Date(), duration: 3600, color: .blue, icon: "circle", category: .work), isPresented: $showingAddTask)
+                TaskEditorView(viewModel: viewModel, 
+                             task: Task(id: UUID(), 
+                                      title: "", 
+                                      startTime: viewModel.selectedDate, 
+                                      duration: 3600, 
+                                      color: .blue, 
+                                      icon: "circle", 
+                                      category: .work), 
+                             isPresented: $showingAddTask)
             }
         }
     }
     
-    private var todayTasks: [Task] {
+    private var selectedDateTasks: [Task] {
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        return viewModel.tasks.filter { calendar.isDate($0.startTime, inSameDayAs: today) }
+        let selectedDay = calendar.startOfDay(for: viewModel.selectedDate)
+        return viewModel.tasks
+            .filter { calendar.isDate($0.startTime, inSameDayAs: selectedDay) }
             .sorted { $0.startTime < $1.startTime }
+    }
+    
+    private var navigationTitle: String {
+        if Calendar.current.isDate(viewModel.selectedDate, inSameDayAs: Date()) {
+            return "Сегодня"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "d MMMM"
+            formatter.locale = Locale(identifier: "ru_RU")
+            return formatter.string(from: viewModel.selectedDate)
+        }
     }
     
     private func deleteTasks(at offsets: IndexSet) {
         for index in offsets {
-            let task = todayTasks[index]
+            let task = selectedDateTasks[index]
             viewModel.removeTask(task)
         }
     }

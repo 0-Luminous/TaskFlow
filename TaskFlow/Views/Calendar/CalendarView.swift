@@ -5,7 +5,7 @@ struct CalendarView: View {
     @State private var selectedTask: Task?
     @State private var isEditingTask = false
     @State private var searchText = ""
-    @State private var currentDate = Date()
+    @Environment(\.dismiss) private var dismiss
 
     init(viewModel: ClockViewModel) {
         _viewModel = StateObject(wrappedValue: viewModel)
@@ -32,13 +32,16 @@ struct CalendarView: View {
     var body: some View {
         NavigationView {
             VStack {
-                DatePicker("", selection: $currentDate, displayedComponents: .date)
+                DatePicker("", selection: $viewModel.selectedDate, displayedComponents: .date)
                     .datePickerStyle(GraphicalDatePickerStyle())
                     .padding()
+                    .onChange(of: viewModel.selectedDate) { newDate in
+                        dismiss()
+                    }
                 
                 List {
                     ForEach(sortedDates, id: \.self) { date in
-                        if Calendar.current.isDate(date, inSameDayAs: currentDate) {
+                        if Calendar.current.isDate(date, inSameDayAs: viewModel.selectedDate) {
                             Section(header: Text(dateFormatter.string(from: date))) {
                                 ForEach(filteredTasks[date]?.sorted(by: { $0.startTime < $1.startTime }) ?? []) { task in
                                     CalendarTaskRow(task: task, isSelected: selectedTask == task)
@@ -64,7 +67,7 @@ struct CalendarView: View {
                         }
                     }
                 }
-                .animation(.default, value: currentDate)
+                .animation(.default, value: viewModel.selectedDate)
             }
             .navigationTitle("Календарь")
             .searchable(text: $searchText, prompt: "Поиск задач")

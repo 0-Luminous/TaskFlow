@@ -37,7 +37,11 @@ struct ClockView: View {
                     }
                     
                     // Существующий циферблат
-                    MainClockFaceView(currentDate: currentDate, tasks: viewModel.tasks, viewModel: viewModel, draggedCategory: $draggedCategory, clockFaceColor: currentClockFaceColor)
+                    MainClockFaceView(currentDate: viewModel.selectedDate, 
+                                    tasks: viewModel.tasks,
+                                    viewModel: viewModel,
+                                    draggedCategory: $draggedCategory,
+                                    clockFaceColor: currentClockFaceColor)
                 }
                 Spacer()
                 CategoryDockBar(viewModel: viewModel, 
@@ -100,7 +104,9 @@ struct ClockView: View {
         .background(currentClockFaceColor)
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .onReceive(timer) { _ in
-            currentDate = Date()
+            if Calendar.current.isDate(viewModel.selectedDate, inSameDayAs: Date()) {
+                currentDate = Date()
+            }
         }
     }
     
@@ -113,14 +119,14 @@ struct ClockView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "d MMMM yyyy"
         formatter.locale = Locale(identifier: "ru_RU")
-        return formatter.string(from: currentDate)
+        return formatter.string(from: viewModel.selectedDate)
     }
     
     private var formattedWeekday: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEEE"
         formatter.locale = Locale(identifier: "ru_RU")
-        return formatter.string(from: currentDate).capitalized
+        return formatter.string(from: viewModel.selectedDate).capitalized
     }
 }
 
@@ -327,6 +333,13 @@ struct MainClockFaceView: View {
     @State private var dropLocation: CGPoint?
     let clockFaceColor: Color
     
+    // Добавляем вычисляемое свойство для фильтрации задач по выбранной дате
+    private var tasksForSelectedDate: [Task] {
+        tasks.filter { task in
+            Calendar.current.isDate(task.startTime, inSameDayAs: currentDate)
+        }
+    }
+    
     private func timeForLocation(_ location: CGPoint) -> Date {
         let center = CGPoint(x: UIScreen.main.bounds.width * 0.35, y: UIScreen.main.bounds.width * 0.35)
         let vector = CGVector(dx: location.x - center.x, dy: location.y - center.y)
@@ -357,7 +370,11 @@ struct MainClockFaceView: View {
                 .fill(clockFaceColor)
                 .stroke(Color.gray, lineWidth: 2)
             
-            MainTaskArcsView(tasks: tasks, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
+            // Используем отфильтрованные задачи
+            MainTaskArcsView(tasks: tasksForSelectedDate, 
+                           viewModel: viewModel, 
+                           selectedTask: $selectedTask, 
+                           showingTaskDetail: $showingTaskDetail)
             
             MainClockMarksView()
             
@@ -373,7 +390,7 @@ struct MainClockFaceView: View {
         .aspectRatio(1, contentMode: .fit)
         .frame(height: UIScreen.main.bounds.width * 0.7)
         .padding()
-        .animation(.spring(), value: tasks)
+        .animation(.spring(), value: tasksForSelectedDate)
         .onDrop(of: [.text], isTargeted: nil) { providers, location in
             guard let category = draggedCategory else { return false }
             
@@ -382,10 +399,24 @@ struct MainClockFaceView: View {
             
             let time = timeForLocation(dropPoint)
             
+            // Создаем новую задачу с учетом выбранной даты
+            let calendar = Calendar.current
+            let selectedComponents = calendar.dateComponents([.year, .month, .day], from: currentDate)
+            let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+            
+            var newTaskComponents = DateComponents()
+            newTaskComponents.year = selectedComponents.year
+            newTaskComponents.month = selectedComponents.month
+            newTaskComponents.day = selectedComponents.day
+            newTaskComponents.hour = timeComponents.hour
+            newTaskComponents.minute = timeComponents.minute
+            
+            let newTaskDate = calendar.date(from: newTaskComponents) ?? time
+            
             let newTask = Task(
                 id: UUID(),
                 title: "Новая задача",
-                startTime: time,
+                startTime: newTaskDate,
                 duration: 3600,
                 color: category.color,
                 icon: category.iconName,
