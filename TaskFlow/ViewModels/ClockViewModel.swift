@@ -166,4 +166,21 @@ class ClockViewModel: ObservableObject {
             }
         }
     }
+
+    func updateTaskStartTime(_ task: Task, newStartTime: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = task
+            updatedTask.startTime = newStartTime
+            tasks[index] = updatedTask
+        }
+    }
+    
+    func updateTaskDuration(_ task: Task, newEndTime: Date) {
+        if let index = tasks.firstIndex(where: { $0.id == task.id }) {
+            var updatedTask = task
+            let duration = newEndTime.timeIntervalSince(task.startTime)
+            updatedTask.duration = duration
+            tasks[index] = updatedTask
+        }
+    }
 }

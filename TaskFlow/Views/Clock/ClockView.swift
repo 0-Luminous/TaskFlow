@@ -333,6 +333,13 @@ struct MainClockFaceView: View {
     @State private var dropLocation: CGPoint?
     let clockFaceColor: Color
     
+    // Добавляем новые состояния
+    @State private var isEditingMode = false
+    @State private var editingTask: Task?
+    @State private var isDraggingStart = false
+    @State private var isDraggingEnd = false
+    @State private var previewTime: Date?
+    
     // Добавляем вычисляемое свойство для фильтрации задач по выбранной дате
     private var tasksForSelectedDate: [Task] {
         tasks.filter { task in
@@ -374,7 +381,12 @@ struct MainClockFaceView: View {
             MainTaskArcsView(tasks: tasksForSelectedDate, 
                            viewModel: viewModel, 
                            selectedTask: $selectedTask, 
-                           showingTaskDetail: $showingTaskDetail)
+                           showingTaskDetail: $showingTaskDetail,
+                           isEditingMode: $isEditingMode,
+                           editingTask: $editingTask,
+                           isDraggingStart: $isDraggingStart,
+                           isDraggingEnd: $isDraggingEnd,
+                           previewTime: $previewTime)
             
             MainClockMarksView()
             
@@ -385,6 +397,16 @@ struct MainClockFaceView: View {
                     .fill(draggedCategory?.color ?? .clear)
                     .frame(width: 20, height: 20)
                     .position(location)
+            }
+            
+            // Обновленное отображение времени в центре при редактировании
+            if isEditingMode, let time = previewTime, let task = editingTask {
+                ClockCenterView(
+                    currentDate: time,
+                    isDraggingStart: isDraggingStart,
+                    isDraggingEnd: isDraggingEnd,
+                    task: task
+                )
             }
         }
         .aspectRatio(1, contentMode: .fit)
@@ -430,6 +452,8 @@ struct MainClockFaceView: View {
                 self.dropLocation = nil
             }
             
+            isEditingMode = true
+            editingTask = newTask
             return true
         }
         .sheet(isPresented: $showingTaskDetail) {
@@ -445,11 +469,25 @@ struct MainTaskArcsView: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var selectedTask: Task?
     @Binding var showingTaskDetail: Bool
+    @Binding var isEditingMode: Bool
+    @Binding var editingTask: Task?
+    @Binding var isDraggingStart: Bool
+    @Binding var isDraggingEnd: Bool
+    @Binding var previewTime: Date?
     
     var body: some View {
         GeometryReader { geometry in
             ForEach(tasks) { task in
-                MainClockTaskArc(task: task, geometry: geometry, viewModel: viewModel, selectedTask: $selectedTask, showingTaskDetail: $showingTaskDetail)
+                MainClockTaskArc(task: task,
+                               geometry: geometry,
+                               viewModel: viewModel,
+                               selectedTask: $selectedTask,
+                               showingTaskDetail: $showingTaskDetail,
+                               isEditingMode: $isEditingMode,
+                               editingTask: $editingTask,
+                               isDraggingStart: $isDraggingStart,
+                               isDraggingEnd: $isDraggingEnd,
+                               previewTime: $previewTime)
             }
         }
     }
@@ -461,6 +499,11 @@ struct MainClockTaskArc: View {
     @ObservedObject var viewModel: ClockViewModel
     @Binding var selectedTask: Task?
     @Binding var showingTaskDetail: Bool
+    @Binding var isEditingMode: Bool
+    @Binding var editingTask: Task?
+    @Binding var isDraggingStart: Bool
+    @Binding var isDraggingEnd: Bool
+    @Binding var previewTime: Date?
     
     private func calculateAngles() -> (start: Angle, end: Angle) {
         let calendar = Calendar.current
@@ -509,6 +552,7 @@ struct MainClockTaskArc: View {
         let (startAngle, endAngle) = calculateAngles()
         
         ZStack {
+            // Дуга задачи с жестами
             Path { path in
                 path.addArc(center: center, 
                            radius: radius + 10, 
@@ -517,6 +561,80 @@ struct MainClockTaskArc: View {
                            clockwise: false)
             }
             .stroke(task.category.color, lineWidth: 20)
+            .gesture(
+                // Жест долгого нажатия для входа/выхода из режима редактирования
+                LongPressGesture(minimumDuration: 0.5)
+                    .onEnded { _ in
+                        withAnimation {
+                            if isEditingMode && editingTask?.id == task.id {
+                                // Выход из режима редактирования
+                                isEditingMode = false
+                                editingTask = nil
+                            } else {
+                                // Вход в режим редактирования
+                                isEditingMode = true
+                                editingTask = task
+                            }
+                        }
+                    }
+            )
+            .simultaneousGesture(
+                // Обычное нажатие для открытия редактора задачи
+                TapGesture()
+                    .onEnded {
+                        if !isEditingMode {
+                            selectedTask = task
+                            showingTaskDetail = true
+                        }
+                    }
+            )
+            
+            // Маркеры редактирования
+            if isEditingMode && task.id == editingTask?.id {
+                // Начальный маркер
+                Circle()
+                    .fill(task.category.color)
+                    .frame(width: 24, height: 24)
+                    .position(
+                        x: center.x + (radius + 10) * cos(startAngle.radians),
+                        y: center.y + (radius + 10) * sin(startAngle.radians)
+                    )
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                isDraggingStart = true
+                                let newTime = timeForLocation(value.location, center: center)
+                                previewTime = newTime
+                                viewModel.updateTaskStartTime(task, newStartTime: newTime)
+                            }
+                            .onEnded { _ in
+                                isDraggingStart = false
+                                previewTime = nil
+                            }
+                    )
+
+                // Конечный маркер
+                Circle()
+                    .fill(task.category.color)
+                    .frame(width: 24, height: 24)
+                    .position(
+                        x: center.x + (radius + 10) * cos(endAngle.radians),
+                        y: center.y + (radius + 10) * sin(endAngle.radians)
+                    )
+                    .gesture(
+                        DragGesture()
+                            .onChanged { value in
+                                isDraggingEnd = true
+                                let newTime = timeForLocation(value.location, center: center)
+                                previewTime = newTime
+                                viewModel.updateTaskDuration(task, newEndTime: newTime)
+                            }
+                            .onEnded { _ in
+                                isDraggingEnd = false
+                                previewTime = nil
+                            }
+                    )
+            }
             
             let midAngle = calculateMidAngle(start: startAngle, end: endAngle)
             Image(systemName: task.category.iconName)
@@ -532,10 +650,23 @@ struct MainClockTaskArc: View {
                     y: center.y + (radius + 20) * sin(midAngle.radians)
                 )
         }
-        .onTapGesture {
-            selectedTask = task
-            showingTaskDetail = true
-        }
+    }
+    
+    private func timeForLocation(_ location: CGPoint, center: CGPoint) -> Date {
+        let vector = CGVector(dx: location.x - center.x, dy: location.y - center.y)
+        var angle = atan2(vector.dy, vector.dx)
+        var degrees = angle * 180 / .pi
+        degrees = (degrees - 90 + 360).truncatingRemainder(dividingBy: 360)
+        
+        let hours = degrees / 15
+        let hourComponent = Int(hours)
+        let minuteComponent = Int((hours - Double(hourComponent)) * 60)
+        
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: task.startTime)
+        components.hour = hourComponent
+        components.minute = minuteComponent
+        
+        return Calendar.current.date(from: components) ?? task.startTime
     }
 }
 
@@ -653,18 +784,44 @@ struct MainClockMarkView: View {
 
 struct ClockCenterView: View {
     let currentDate: Date
+    let isDraggingStart: Bool
+    let isDraggingEnd: Bool
+    let task: Task?
     
     var body: some View {
         VStack {
-            Text(currentDate, style: .date)
-                .font(.system(size: 18, weight: .bold))
-            Text(currentDate, style: .time)
-                .font(.system(size: 24, weight: .bold))
+            if isDraggingStart {
+                // Показываем только время начала
+                Text(timeFormatter.string(from: currentDate))
+                    .font(.system(size: 24, weight: .bold))
+            } else if isDraggingEnd, let task = task {
+                // Показываем продолжительность
+                let duration = currentDate.timeIntervalSince(task.startTime)
+                Text(formatDuration(duration))
+                    .font(.system(size: 24, weight: .bold))
+            }
         }
         .foregroundColor(.white)
         .padding()
         .background(Color.black.opacity(0.5))
         .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+    
+    var timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        return formatter
+    }()
+    
+    func formatDuration(_ timeInterval: TimeInterval) -> String {
+        let hours = Int(timeInterval) / 3600
+        let minutes = Int(timeInterval) / 60 % 60
+        
+        if hours > 0 {
+            return String(format: "%dч %02dмин", hours, minutes)
+        } else {
+            return String(format: "%d мин", minutes)
+        }
     }
 }
 
